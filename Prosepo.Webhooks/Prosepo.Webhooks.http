@@ -1,0 +1,6 @@
+@Prosepo.Webhooks_HostAddress = http://localhost:5251
+
+GET {{Prosepo.Webhooks_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,68 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
+
+namespace Prosepo.Webhooks.DTO
+{
+
+    public class OrderDto
+    {
+        [JsonPropertyName("marketplace")]
+        public string Marketplace { get; set; } = string.Empty;
+
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+
+        [JsonPropertyName("masterSystemId")]
+        public int MasterSystemId { get; set; }
+
+        [JsonPropertyName("parentOrderId")]
+        public int ParentOrderId { get; set; }
+
+        [JsonPropertyName("number")]
+        public string Number { get; set; } = string.Empty;
+
+        [JsonPropertyName("type")]
+        public int Type { get; set; }
+
+        [JsonPropertyName("courier")]
+        public int Courier { get; set; }
+
+        [JsonPropertyName("deliveryPointId")]
+        public string DeliveryPointId { get; set; } = string.Empty;
+
+        [JsonPropertyName("deliveryServiceId")]
+        public string DeliveryServiceId { get; set; } = string.Empty;
+
+        [JsonPropertyName("allegroSellerId")]
+        public string AllegroSellerId { get; set; } = string.Empty;
+
+        [JsonPropertyName("remarks")]
+        public string Remarks { get; set; } = string.Empty;
+
+        [JsonPropertyName("realizationDatetime")]
+        public DateTime RealizationDatetime { get; set; }
+
+        [JsonPropertyName("wmsStatus")]
+        public int WmsStatus { get; set; }
+
+        [JsonPropertyName("recipient")]
+        public OrderRecipientDto Recipient { get; set; } = new();
+
+        [JsonPropertyName("isCOD")]
+        public bool IsCOD { get; set; }
+
+        [JsonPropertyName("shipmentValue")]
+        public decimal ShipmentValue { get; set; }
+
+        [JsonPropertyName("shipmentPackagesCount")]
+        public int ShipmentPackagesCount { get; set; }
+
+        [JsonPropertyName("shipmentPackagesExactNumberRequired")]
+        public bool ShipmentPackagesExactNumberRequired { get; set; }
+
+        [JsonPropertyName("orderItems")]
+        public List<OrderItemDto> OrderItems { get; set; } = new();
+    }
+
+}

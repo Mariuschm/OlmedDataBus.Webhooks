@@ -4,3 +4,240 @@ GET {{Prosepo.Webhooks_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+# Test CronController Health Check
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/health
+Accept: application/json
+
+###
+
+# === SCHEDULED JOBS MANAGEMENT ===
+
+# Create Example Scheduled Jobs
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule/examples
+Content-Type: application/json
+
+###
+
+# Get All Scheduled Jobs
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule
+Accept: application/json
+
+###
+
+# Schedule Custom Job - Every 60 seconds
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule
+Content-Type: application/json
+
+{
+  "jobId": "custom-test-job",
+  "schedule": {
+    "type": 0,
+    "intervalSeconds": 60,
+    "request": {
+      "method": "GET",
+      "url": "https://httpbin.org/get",
+      "headers": {
+        "User-Agent": "Prosepo-Custom-Job/1.0"
+      }
+    }
+  }
+}
+
+###
+
+# Schedule Daily Job - Every day at 14:30
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule
+Content-Type: application/json
+
+{
+  "jobId": "daily-notification",
+  "schedule": {
+    "type": 1,
+    "hour": 14,
+    "minute": 30,
+    "request": {
+      "method": "POST",
+      "url": "https://httpbin.org/post",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"notification\": \"Daily report\", \"timestamp\": \"{{$datetime iso8601}}\"}"
+    }
+  }
+}
+
+###
+
+# Schedule Weekly Job - Every Friday at 17:00
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule
+Content-Type: application/json
+
+{
+  "jobId": "weekly-summary",
+  "schedule": {
+    "type": 2,
+    "dayOfWeek": 5,
+    "hour": 17,
+    "minute": 0,
+    "request": {
+      "method": "POST",
+      "url": "https://httpbin.org/post",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"summary\": \"Weekly report\", \"week\": \"{{$datetime iso8601}}\"}"
+    }
+  }
+}
+
+###
+
+# Schedule Monthly Job - 1st of every month at 08:00
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule
+Content-Type: application/json
+
+{
+  "jobId": "monthly-backup",
+  "schedule": {
+    "type": 3,
+    "dayOfMonth": 1,
+    "hour": 8,
+    "minute": 0,
+    "request": {
+      "method": "POST",
+      "url": "https://httpbin.org/post",
+      "body": "{\"task\": \"monthly backup\"}"
+    }
+  }
+}
+
+###
+
+# Schedule Olmed Auth Refresh - Every 45 minutes
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule
+Content-Type: application/json
+
+{
+  "jobId": "olmed-token-refresh",
+  "schedule": {
+    "type": 0,
+    "intervalSeconds": 2700,
+    "request": {
+      "method": "POST",
+      "url": "{{Prosepo.Webhooks_HostAddress}}/api/cron/auth/refresh-if-needed"
+    }
+  }
+}
+
+###
+
+# Get Specific Scheduled Job
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule/custom-test-job
+Accept: application/json
+
+###
+
+# Remove Scheduled Job
+DELETE {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule/custom-test-job
+
+###
+
+# === AUTHENTICATION ENDPOINTS ===
+
+# Olmed Authentication - Login and Get Token
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/auth/olmed-login
+Content-Type: application/json
+
+###
+
+# Get Current Olmed Token
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/auth/olmed-token
+Accept: application/json
+
+###
+
+# Manual Olmed Token Refresh
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/auth/olmed-refresh
+Content-Type: application/json
+
+###
+
+# Refresh Olmed Token If Needed (Smart refresh)
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/auth/refresh-if-needed
+Content-Type: application/json
+
+###
+
+# Olmed Logout - Manual logout with current token
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/auth/olmed-logout
+Content-Type: application/json
+
+###
+
+# === ONE-TIME EXECUTION ENDPOINTS ===
+
+# Execute Olmed Webhook Test
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/execute-olmed-webhook
+Content-Type: application/json
+
+###
+
+# Execute Custom Cron Job - GET Request
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/execute
+Content-Type: application/json
+
+{
+  "method": "GET",
+  "url": "https://httpbin.org/get",
+  "headers": {
+    "User-Agent": "Prosepo-Cron-Job/1.0"
+  }
+}
+
+###
+
+# Execute Custom Cron Job with Olmed Auth - GET Request
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/execute
+Content-Type: application/json
+
+{
+  "method": "GET",
+  "url": "https://draft-csm-connector.grupaolmed.pl/erp-api/some-endpoint",
+  "useOlmedAuth": true,
+  "headers": {
+    "User-Agent": "Prosepo-Cron-Job/1.0",
+    "accept": "application/json"
+  }
+}
+
+###
+
+# Execute Custom Cron Job - POST Request
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/execute
+Content-Type: application/json
+
+{
+  "method": "POST",
+  "url": "https://httpbin.org/post",
+  "headers": {
+    "User-Agent": "Prosepo-Cron-Job/1.0",
+    "Content-Type": "application/json"
+  },
+  "body": "{\"message\": \"Test from cron job\", \"timestamp\": \"2024-01-01T10:00:00Z\"}"
+}
+
+###
+
+# Test Webhook Endpoint (existing)
+POST {{Prosepo.Webhooks_HostAddress}}/api/webhook
+Content-Type: application/json
+X-OLMED-ERP-API-SIGNATURE: test_signature
+
+{
+  "guid": "12345678-1234-1234-1234-123456789012",
+  "webhookType": "order",
+  "webhookData": "encrypted_data_here"
+}
+
+###

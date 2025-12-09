@@ -6,12 +6,12 @@ namespace Prosepo.Webhooks.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class ProductsController : ControllerBase
+    public class WebhookController : ControllerBase
     {
         private readonly SecureWebhookHelper _helper;
-        private readonly ILogger<ProductsController> _logger;
+        private readonly ILogger<WebhookController> _logger;
 
-        public ProductsController(IConfiguration configuration, ILogger<ProductsController> logger)
+        public WebhookController(IConfiguration configuration, ILogger<WebhookController> logger)
         {
             var encryptionKey = configuration["OlmedDataBus:WebhookKeys:EncryptionKey"] ?? string.Empty;
             var hmacKey = configuration["OlmedDataBus:WebhookKeys:HmacKey"] ?? string.Empty;
@@ -35,11 +35,6 @@ namespace Prosepo.Webhooks.Controllers
             return BadRequest("Invalid signature or decryption failed.");
         }
 
-        public class WebhookPayload
-        {
-            public string guid { get; set; } = string.Empty;
-            public string webhookType { get; set; } = string.Empty;
-            public string webhookData { get; set; } = string.Empty;
-        }
+    
     }
 }

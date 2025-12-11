@@ -56,6 +56,9 @@ namespace Prosepo.Webhooks.DTO
         [JsonPropertyName("imageUrl")]
         public string ImageUrl { get; set; } = string.Empty;
 
+        [JsonPropertyName("parentArticleSKU")]
+        public string ParentArticleSKU { get; set; } = string.Empty;
+
         [JsonPropertyName("isActive")]
         public bool IsActive { get; set; }
 
@@ -81,12 +84,21 @@ namespace Prosepo.Webhooks.DTO
         public string Supervisor { get; set; } = string.Empty;
 
         [JsonPropertyName("type")]
-        public string Type { get; set; } = string.Empty;
+        public string? Type { get; set; }
+
+        [JsonPropertyName("isPackage")]
+        public bool IsPackage { get; set; }
     }
+    
     public class ProductDimensionsDto
     {
+        [JsonPropertyName("x")]
         public decimal X { get; set; }
+        
+        [JsonPropertyName("y")]
         public decimal Y { get; set; }
+        
+        [JsonPropertyName("z")]
         public decimal Z { get; set; }
     }
 }

@@ -1,0 +1,158 @@
+{
+  "version": "1.0",
+  "lastModified": "2024-12-19T10:00:00Z",
+  "configurations": [
+    {
+      "id": "olmed-sync-products",
+      "name": "Synchronizacja produktów Olmed",
+      "description": "Pobieranie produktów z API Olmed co 2 godziny - synchronizacja produktów dla marketplace APTEKA_OLMED",
+      "isActive": true,
+      "intervalSeconds": 7200,
+      "method": "POST",
+      "url": "https://draft-csm-connector.grupaolmed.pl/erp-api/products/get-products",
+      "useOlmedAuth": true,
+      "headers": {
+        "accept": "application/json",
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": ""
+      },
+      "body": "{\"marketplace\": \"APTEKA_OLMED\"}",
+      "marketplace": "APTEKA_OLMED",
+      "additionalParameters": {
+        "priority": "high",
+        "retryCount": 3,
+        "timeout": 30
+      }
+    },
+    {
+      "id": "olmed-sync-orders",
+      "name": "Synchronizacja zamówieñ Olmed",
+      "description": "Pobieranie nowych zamówieñ z API Olmed co 15 minut",
+      "isActive": true,
+      "intervalSeconds": 900,
+      "method": "POST",
+      "url": "https://draft-csm-connector.grupaolmed.pl/erp-api/orders/get-orders",
+      "useOlmedAuth": true,
+      "headers": {
+        "accept": "application/json",
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": ""
+      },
+      "body": "{\"marketplace\": \"APTEKA_OLMED\", \"status\": \"new\"}",
+      "marketplace": "APTEKA_OLMED",
+      "additionalParameters": {
+        "priority": "high",
+        "retryCount": 5,
+        "timeout": 60
+      }
+    },
+    {
+      "id": "olmed-update-inventory",
+      "name": "Aktualizacja stanów magazynowych",
+      "description": "Wysy³anie aktualizacji stanów magazynowych do Olmed co 30 minut",
+      "isActive": true,
+      "intervalSeconds": 1800,
+      "method": "POST",
+      "url": "https://draft-csm-connector.grupaolmed.pl/erp-api/inventory/update",
+      "useOlmedAuth": true,
+      "headers": {
+        "accept": "application/json",
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": ""
+      },
+      "body": "{\"marketplace\": \"APTEKA_OLMED\", \"updateType\": \"inventory\"}",
+      "marketplace": "APTEKA_OLMED",
+      "additionalParameters": {
+        "priority": "medium",
+        "retryCount": 3,
+        "timeout": 45
+      }
+    },
+    {
+      "id": "olmed-sync-prices",
+      "name": "Synchronizacja cen produktów",
+      "description": "Pobieranie aktualnych cen produktów z API Olmed co 4 godziny",
+      "isActive": true,
+      "intervalSeconds": 14400,
+      "method": "POST",
+      "url": "https://draft-csm-connector.grupaolmed.pl/erp-api/products/get-prices",
+      "useOlmedAuth": true,
+      "headers": {
+        "accept": "application/json",
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": ""
+      },
+      "body": "{\"marketplace\": \"APTEKA_OLMED\", \"priceType\": \"current\"}",
+      "marketplace": "APTEKA_OLMED",
+      "additionalParameters": {
+        "priority": "medium",
+        "retryCount": 2,
+        "timeout": 30
+      }
+    },
+    {
+      "id": "test-marketplace-sync",
+      "name": "Synchronizacja testowego marketplace",
+      "description": "Zadanie testowe dla innego marketplace - obecnie nieaktywne",
+      "isActive": false,
+      "intervalSeconds": 3600,
+      "method": "POST",
+      "url": "https://api.test-marketplace.com/sync",
+      "useOlmedAuth": false,
+      "headers": {
+        "accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": "Bearer test-token"
+      },
+      "body": "{\"action\": \"sync_products\"}",
+      "marketplace": "TEST_MARKETPLACE",
+      "additionalParameters": {
+        "priority": "low",
+        "retryCount": 1,
+        "timeout": 15
+      }
+    },
+    {
+      "id": "olmed-health-check",
+      "name": "Health Check API Olmed",
+      "description": "Sprawdzanie dostêpnoœci API Olmed co 5 minut",
+      "isActive": true,
+      "intervalSeconds": 300,
+      "method": "GET",
+      "url": "https://draft-csm-connector.grupaolmed.pl/erp-api/health",
+      "useOlmedAuth": false,
+      "headers": {
+        "accept": "application/json"
+      },
+      "body": "",
+      "marketplace": "",
+      "additionalParameters": {
+        "priority": "low",
+        "retryCount": 1,
+        "timeout": 10
+      }
+    },
+    {
+      "id": "daily-cleanup",
+      "name": "Codzienne czyszczenie logów",
+      "description": "Wywo³anie endpointu czyszczenia starych logów - codziennie o 2:00",
+      "isActive": true,
+      "intervalSeconds": 86400,
+      "method": "POST",
+      "url": "http://localhost:5251/api/admin/cleanup-logs",
+      "useOlmedAuth": false,
+      "headers": {
+        "accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      "body": "{\"olderThanDays\": 30}",
+      "marketplace": "",
+      "additionalParameters": {
+        "priority": "low",
+        "retryCount": 1,
+        "timeout": 120,
+        "scheduleTime": "02:00"
+      }
+    }
+  ]
+}

@@ -132,6 +132,31 @@ Content-Type: application/json
 
 ###
 
+# Schedule Olmed Products Sync Job - Every 2 hours
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule
+Content-Type: application/json
+
+{
+  "jobId": "olmed-products-sync",
+  "schedule": {
+    "type": 0,
+    "intervalSeconds": 7200,
+    "request": {
+      "method": "POST",
+      "url": "https://draft-csm-connector.grupaolmed.pl/erp-api/products/get-products",
+      "useOlmedAuth": true,
+      "headers": {
+        "accept": "application/json",
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": ""
+      },
+      "body": "{\"marketplace\": \"APTEKA_OLMED\"}"
+    }
+  }
+}
+
+###
+
 # Get Specific Scheduled Job
 GET {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule/custom-test-job
 Accept: application/json
@@ -229,7 +254,15 @@ Content-Type: application/json
 
 ###
 
-# Test Webhook Endpoint (existing)
+# === WEBHOOK ENDPOINTS ===
+
+# Test Webhook Health Check
+GET {{Prosepo.Webhooks_HostAddress}}/api/webhook/health
+Accept: application/json
+
+###
+
+# Test Webhook Endpoint - with file storage
 POST {{Prosepo.Webhooks_HostAddress}}/api/webhook
 Content-Type: application/json
 X-OLMED-ERP-API-SIGNATURE: test_signature
@@ -239,5 +272,100 @@ X-OLMED-ERP-API-SIGNATURE: test_signature
   "webhookType": "order",
   "webhookData": "encrypted_data_here"
 }
+
+###
+
+# Test Webhook with Product Data
+POST {{Prosepo.Webhooks_HostAddress}}/api/webhook
+Content-Type: application/json
+X-OLMED-ERP-API-SIGNATURE: product_signature
+
+{
+  "guid": "87654321-4321-4321-4321-210987654321",
+  "webhookType": "product_update",
+  "webhookData": "encrypted_product_data_here"
+}
+
+###
+
+# === CRON JOB LOGS ENDPOINTS ===
+
+# Get Available Log Files
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/logs/files
+Accept: application/json
+
+###
+
+# Get Job Execution Logs (today)
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/logs?logType=job_executions
+Accept: application/json
+
+###
+
+# Get Job Events Logs (today)
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/logs?logType=job_events
+Accept: application/json
+
+###
+
+# Get Scheduler Events Logs (today)
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/logs?logType=scheduler_events
+Accept: application/json
+
+###
+
+# Get Logs for Specific Job
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/logs?logType=job_executions&jobId=olmed-sync-products
+Accept: application/json
+
+###
+
+# Get Logs for Specific Date
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/logs?logType=job_executions&date=20241209
+Accept: application/json
+
+###
+
+# Get Logs with Job Filter and Date
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/logs?logType=job_executions&date=20241209&jobId=test-interval
+Accept: application/json
+
+###
+
+# === SCHEDULER STATUS AND MONITORING ===
+
+# Get Scheduler Status (detailed info about jobs and next executions)
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/status
+Accept: application/json
+
+###
+
+# Health Check with Job Information
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/health
+Accept: application/json
+
+###
+
+# Get All Scheduled Jobs (should show auto-loaded examples)
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule
+Accept: application/json
+
+###
+
+# Get Specific Auto-loaded Job
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule/quick-test
+Accept: application/json
+
+###
+
+# Get Another Auto-loaded Job
+GET {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule/test-interval
+Accept: application/json
+
+###
+
+# Manually Create Example Jobs (if auto-loading is disabled)
+POST {{Prosepo.Webhooks_HostAddress}}/api/cron/schedule/examples
+Content-Type: application/json
 
 ###

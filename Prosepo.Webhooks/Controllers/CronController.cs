@@ -19,6 +19,7 @@ namespace Prosepo.Webhooks.Controllers
         private readonly ILogger<CronController> _logger;
         private readonly IConfiguration _configuration;
         private readonly CronSchedulerService _schedulerService;
+        private readonly ProductSyncConfigurationService _productSyncConfigService;
         
         /// <summary>
         /// Statyczny storage dla tokenów autoryzacji. 
@@ -33,12 +34,14 @@ namespace Prosepo.Webhooks.Controllers
         /// <param name="logger">Logger do rejestrowania zdarzeñ</param>
         /// <param name="configuration">Konfiguracja aplikacji</param>
         /// <param name="schedulerService">Serwis zarz¹dzaj¹cy zadaniami cyklicznymi</param>
-        public CronController(HttpClient httpClient, ILogger<CronController> logger, IConfiguration configuration, CronSchedulerService schedulerService)
+        /// <param name="productSyncConfigurationService">Serwis zarz¹dzaj¹cy konfiguracj¹ synchronizacji produktów</param>
+        public CronController(HttpClient httpClient, ILogger<CronController> logger, IConfiguration configuration, CronSchedulerService schedulerService, ProductSyncConfigurationService productSyncConfigurationService)
         {   
             _httpClient = httpClient;
-            _logger = logger;
+            _logger = logger;            
             _configuration = configuration;
             _schedulerService = schedulerService;
+            _productSyncConfigService = productSyncConfigurationService;
         }
 
         #region Scheduled Jobs Management - Zarz¹dzanie zadaniami cyklicznymi
@@ -144,6 +147,7 @@ namespace Prosepo.Webhooks.Controllers
         /// <summary>
         /// Tworzy zestaw przyk³adowych zadañ cyklicznych do demonstracji funkcjonalnoœci.
         /// Zawiera przyk³ady dla ró¿nych typów harmonogramów (interwa³y, dziennie, tygodniowo).
+        /// Zadania synchronizacji produktów s¹ ³adowane z konfiguracji zewnêtrznej.
         /// </summary>
         /// <returns>Lista utworzonych przyk³adowych zadañ</returns>
         /// <response code="200">Przyk³adowe zadania zosta³y utworzone</response>
@@ -151,54 +155,13 @@ namespace Prosepo.Webhooks.Controllers
         [HttpPost("schedule/examples")]
         [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(typeof(object), 500)]
-        public IActionResult CreateExampleJobs()
+        public async Task<IActionResult> CreateExampleJobs()
         {
             try
             {
-                // Przyk³ad 1: Zadanie wykonywane co 30 sekund - przydatne do monitorowania
-                _schedulerService.AddOrUpdateJob("test-interval", new CronJobSchedule
-                {
-                    Type = ScheduleType.Interval,
-                    IntervalSeconds = 30,
-                    Request = new CronJobRequest
-                    {
-                        Method = "GET",
-                        Url = "https://httpbin.org/get",
-                        Headers = new Dictionary<string, string> { { "User-Agent", "Prosepo-Scheduler" } }
-                    }
-                });
+                var createdJobs = new List<string>();
 
-                // Przyk³ad 2: Zadanie codzienne o 09:00 - typowe dla raportów dziennych
-                _schedulerService.AddOrUpdateJob("daily-report", new CronJobSchedule
-                {
-                    Type = ScheduleType.Daily,
-                    Hour = 9,
-                    Minute = 0,
-                    Request = new CronJobRequest
-                    {
-                        Method = "POST",
-                        Url = "https://httpbin.org/post",
-                        Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } },
-                        Body = "{\"report\": \"daily\", \"timestamp\": \"" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ") + "\"}"
-                    }
-                });
-
-                // Przyk³ad 3: Zadanie tygodniowe (poniedzia³ki o 10:00) - typowe dla zadañ konserwacyjnych
-                _schedulerService.AddOrUpdateJob("weekly-cleanup", new CronJobSchedule
-                {
-                    Type = ScheduleType.Weekly,
-                    DayOfWeek = DayOfWeek.Monday,
-                    Hour = 10,
-                    Minute = 0,
-                    Request = new CronJobRequest
-                    {
-                        Method = "POST",
-                        Url = "https://httpbin.org/post",
-                        Body = "{\"task\": \"weekly cleanup\"}"
-                    }
-                });
-
-                // Przyk³ad 4: Automatyczne odœwie¿anie tokena Olmed co 45 minut
+                // Automatyczne odœwie¿anie tokena Olmed co 45 minut
                 // Zapewnia ci¹g³¹ autoryzacjê bez koniecznoœci ponownego logowania
                 _schedulerService.AddOrUpdateJob("olmed-auth-refresh", new CronJobSchedule
                 {
@@ -207,15 +170,55 @@ namespace Prosepo.Webhooks.Controllers
                     Request = new CronJobRequest
                     {
                         Method = "POST",
-                        Url = "http://localhost:5251/api/cron/auth/olmed-login"
+                        Url = "https://localhost:53000/api/cron/auth/refresh-if-needed"
                     }
                 });
+                createdJobs.Add("olmed-auth-refresh");
+
+                // £adowanie zadañ synchronizacji produktów z konfiguracji JSON
+                var productSyncConfigurations = await _productSyncConfigService.GetActiveConfigurationsAsync();
+                
+                foreach (var config in productSyncConfigurations)
+                {
+                    try
+                    {
+                        _schedulerService.AddOrUpdateJob(config.Id, new CronJobSchedule
+                        {
+                            Type = ScheduleType.Interval,
+                            IntervalSeconds = config.IntervalSeconds,
+                            Request = new CronJobRequest
+                            {
+                                Method = config.Method,
+                                Url = config.Url,
+                                UseOlmedAuth = config.UseOlmedAuth,
+                                Headers = config.Headers,
+                                Body = config.Body
+                            }
+                        });
+                        
+                        createdJobs.Add(config.Id);
+                        _logger.LogInformation("Utworzono zadanie synchronizacji z konfiguracji: {JobId} - {Name}", config.Id, config.Name);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "B³¹d podczas tworzenia zadania synchronizacji: {JobId} - {Name}", config.Id, config.Name);
+                    }
+                }
 
                 return Ok(new
                 {
                     Success = true,
-                    Message = "Utworzono przyk³adowe zadania cykliczne",
-                    Jobs = new[] { "test-interval", "daily-report", "weekly-cleanup", "olmed-auth-refresh" }
+                    Message = $"Utworzono {createdJobs.Count} zadañ cyklicznych (w tym {productSyncConfigurations.Count} z konfiguracji JSON)",
+                    Jobs = createdJobs,
+                    ProductSyncJobs = productSyncConfigurations.Select(c => new 
+                    { 
+                        Id = c.Id, 
+                        Name = c.Name, 
+                        Marketplace = c.Marketplace,
+                        IntervalSeconds = c.IntervalSeconds,
+                        IsActive = c.IsActive,
+                        Url = c.Url
+                    }).ToList()
                 });
             }
             catch (Exception ex)
@@ -588,7 +591,7 @@ namespace Prosepo.Webhooks.Controllers
             {
                 // Pobieranie URL-a z konfiguracji
                 var olmedBaseUrl = _configuration["OlmedDataBus:BaseUrl"] ?? "http://localhost:5000";
-                var testEndpoint = $"{olmedBaseUrl}/api/webhook/test";
+                var testEndpoint = $"{olmedBaseUrl}/api/webhook/health";
 
                 _logger.LogInformation("Wykonywanie testu webhook Olmed: {Url}", testEndpoint);
 
@@ -631,7 +634,184 @@ namespace Prosepo.Webhooks.Controllers
         [ProducesResponseType(typeof(object), 200)]
         public IActionResult HealthCheck()
         {
-            return Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow });
+            var activeJobs = _schedulerService.GetAllJobs().Where(j => j.IsActive).ToList();
+            
+            return Ok(new 
+            { 
+                Status = "Healthy", 
+                Timestamp = DateTime.UtcNow,
+                ActiveJobs = activeJobs.Count,
+                Jobs = activeJobs.Select(j => new
+                {
+                    j.Id,
+                    j.Schedule.Type,
+                    j.NextExecution,
+                    j.ExecutionCount,
+                    j.IsActive
+                }).ToList()
+            });
+        }
+
+        /// <summary>
+        /// Pobiera logi wykonywania zadañ cyklicznych z plików.
+        /// </summary>
+        /// <param name="logType">Typ logu (job_executions, job_events, scheduler_events)</param>
+        /// <param name="date">Data w formacie yyyyMMdd (opcjonalna, domyœlnie dzisiaj)</param>
+        /// <param name="jobId">Filtrowanie po ID zadania (opcjonalne)</param>
+        /// <returns>Lista wpisów z logów</returns>
+        /// <response code="200">Logi zosta³y pobrane</response>
+        /// <response code="404">Nie znalezione pliki logów</response>
+        /// <response code="400">Nieprawid³owe parametry</response>
+        [HttpGet("logs")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 404)]
+        [ProducesResponseType(typeof(object), 400)]
+        public async Task<IActionResult> GetLogs(
+            [FromQuery] string logType = "job_executions",
+            [FromQuery] string? date = null,
+            [FromQuery] string? jobId = null)
+        {
+            try
+            {
+                // Walidacja typu logu
+                var validLogTypes = new[] { "job_executions", "job_events", "scheduler_events" };
+                if (!validLogTypes.Contains(logType))
+                {
+                    return BadRequest(new 
+                    { 
+                        Success = false, 
+                        Message = $"Nieprawid³owy typ logu. Dostêpne: {string.Join(", ", validLogTypes)}" 
+                    });
+                }
+
+                // Parsowanie daty lub u¿ycie dzisiejszej
+                var targetDate = date ?? DateTime.UtcNow.ToString("yyyyMMdd");
+                if (!DateTime.TryParseExact(targetDate, "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out _))
+                {
+                    return BadRequest(new 
+                    { 
+                        Success = false, 
+                        Message = "Nieprawid³owy format daty. U¿yj: yyyyMMdd" 
+                    });
+                }
+
+                // Œcie¿ka do pliku logów
+                var logDirectory = _configuration["CronJobLogging:Directory"] ?? Path.Combine(Directory.GetCurrentDirectory(), "CronJobLogs");
+                var filename = $"cronjobs_{logType}_{targetDate}.log";
+                var filePath = Path.Combine(logDirectory, filename);
+
+                if (!System.IO.File.Exists(filePath))
+                {
+                    return NotFound(new 
+                    { 
+                        Success = false, 
+                        Message = $"Nie znaleziono pliku logów: {filename}" 
+                    });
+                }
+
+                // Odczyt i parsowanie logów
+                var lines = await System.IO.File.ReadAllLinesAsync(filePath);
+                var logs = new List<object>();
+
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    try
+                    {
+                        var logEntry = JsonSerializer.Deserialize<JsonElement>(line);
+                        
+                        // Filtrowanie po jobId jeœli podano
+                        if (!string.IsNullOrEmpty(jobId))
+                        {
+                            if (logEntry.TryGetProperty("JobId", out var jobIdProperty) && 
+                                jobIdProperty.GetString() != jobId)
+                            {
+                                continue;
+                            }
+                        }
+
+                        logs.Add(logEntry);
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogWarning("Nie mo¿na sparsowaæ linii logu: {Line}, B³¹d: {Error}", line, ex.Message);
+                    }
+                }
+
+                return Ok(new 
+                { 
+                    Success = true, 
+                    LogType = logType,
+                    Date = targetDate,
+                    JobId = jobId,
+                    TotalEntries = logs.Count,
+                    Logs = logs.TakeLast(100).ToList() // Ostatnie 100 wpisów
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas pobierania logów: {LogType}, Data: {Date}", logType, date);
+                return StatusCode(500, new 
+                { 
+                    Success = false, 
+                    Message = ex.Message 
+                });
+            }
+        }
+
+        /// <summary>
+        /// Pobiera listê dostêpnych plików logów zadañ cyklicznych.
+        /// </summary>
+        /// <returns>Lista dostêpnych plików logów</returns>
+        /// <response code="200">Lista plików zosta³a pobrana</response>
+        [HttpGet("logs/files")]
+        [ProducesResponseType(typeof(object), 200)]
+        public IActionResult GetLogFiles()
+        {
+            try
+            {
+                var logDirectory = _configuration["CronJobLogging:Directory"] ?? Path.Combine(Directory.GetCurrentDirectory(), "CronJobLogs");
+                
+                if (!Directory.Exists(logDirectory))
+                {
+                    return Ok(new 
+                    { 
+                        Success = true, 
+                        LogDirectory = logDirectory,
+                        Files = new object[0] 
+                    });
+                }
+
+                var logFiles = Directory.GetFiles(logDirectory, "cronjobs_*.log")
+                    .Select(filePath => new
+                    {
+                        FileName = Path.GetFileName(filePath),
+                        FilePath = filePath,
+                        Size = new FileInfo(filePath).Length,
+                        CreatedAt = System.IO.File.GetCreationTime(filePath),
+                        LastModified = System.IO.File.GetLastWriteTime(filePath)
+                    })
+                    .OrderByDescending(f => f.LastModified)
+                    .ToList();
+
+                return Ok(new 
+                { 
+                    Success = true, 
+                    LogDirectory = logDirectory,
+                    TotalFiles = logFiles.Count,
+                    Files = logFiles 
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas pobierania listy plików logów");
+                return StatusCode(500, new 
+                { 
+                    Success = false, 
+                    Message = ex.Message 
+                });
+            }
         }
 
         #region Logout Methods - Metody wylogowania
@@ -762,6 +942,455 @@ namespace Prosepo.Webhooks.Controllers
                     Success = false,
                     Message = ex.Message
                 });
+            }
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Pobiera szczegó³owe informacje o stanie schedulera.
+        /// </summary>
+        /// <returns>Informacje o schedulerze i aktywnych zadaniach</returns>
+        /// <response code="200">Informacje o schedulerze zosta³y pobrane</response>
+        [HttpGet("status")]
+        [ProducesResponseType(typeof(object), 200)]
+        public IActionResult GetSchedulerStatus()
+        {
+            try
+            {
+                var allJobs = _schedulerService.GetAllJobs().ToList();
+                var activeJobs = allJobs.Where(j => j.IsActive).ToList();
+                var inactiveJobs = allJobs.Where(j => !j.IsActive).ToList();
+
+                // ZnajdŸ najbli¿sze zadanie do wykonania
+                var nextJob = activeJobs
+                    .Where(j => j.NextExecution > DateTime.UtcNow)
+                    .OrderBy(j => j.NextExecution)
+                    .FirstOrDefault();
+
+                // Statystyki wykonañ
+                var totalExecutions = allJobs.Sum(j => j.ExecutionCount);
+                var jobsExecutedToday = allJobs.Where(j => j.LastExecution?.Date == DateTime.UtcNow.Date).ToList();
+
+                return Ok(new
+                {
+                    Success = true,
+                    Scheduler = new
+                    {
+                        IsRunning = true,
+                        StartTime = DateTime.UtcNow, // Placeholder - mo¿na dodaæ rzeczywisty czas startu
+                        CheckInterval = "10 seconds",
+                        LogDirectory = _configuration["CronJobLogging:Directory"] ?? "CronJobLogs"
+                    },
+                    Jobs = new
+                    {
+                        Total = allJobs.Count,
+                        Active = activeJobs.Count,
+                        Inactive = inactiveJobs.Count,
+                        TotalExecutions = totalExecutions,
+                        ExecutedToday = jobsExecutedToday.Count
+                    },
+                    NextExecution = nextJob != null ? new
+                    {
+                        JobId = nextJob.Id,
+                        ScheduledFor = nextJob.NextExecution,
+                        TimeRemaining = (nextJob.NextExecution - DateTime.UtcNow).TotalSeconds
+                    } : null,
+                    RecentActivity = allJobs
+                        .Where(j => j.LastExecution.HasValue)
+                        .OrderByDescending(j => j.LastExecution)
+                        .Take(5)
+                        .Select(j => new
+                        {
+                            JobId = j.Id,
+                            LastExecution = j.LastExecution,
+                            ExecutionCount = j.ExecutionCount
+                        })
+                        .ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas pobierania statusu schedulera");
+                return StatusCode(500, new
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        #region Product Sync Configuration Management - Zarz¹dzanie konfiguracj¹ synchronizacji produktów
+
+        /// <summary>
+        /// Pobiera wszystkie konfiguracje synchronizacji produktów.
+        /// </summary>
+        /// <returns>Lista konfiguracji synchronizacji produktów</returns>
+        /// <response code="200">Konfiguracje zosta³y pobrane</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas pobierania konfiguracji</response>
+        [HttpGet("product-sync/configurations")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 500)]
+        public async Task<IActionResult> GetProductSyncConfigurations()
+        {
+            try
+            {
+                var configurations = await _productSyncConfigService.GetAllConfigurationsAsync();
+                return Ok(new
+                {
+                    Success = true,
+                    Total = configurations.Count,
+                    Active = configurations.Count(c => c.IsActive),
+                    Configurations = configurations
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas pobierania konfiguracji synchronizacji produktów");
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Pobiera konkretn¹ konfiguracjê synchronizacji produktów.
+        /// </summary>
+        /// <param name="configurationId">ID konfiguracji</param>
+        /// <returns>Konfiguracja synchronizacji produktów</returns>
+        /// <response code="200">Konfiguracja zosta³a znaleziona</response>
+        /// <response code="404">Konfiguracja nie zosta³a znaleziona</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas pobierania konfiguracji</response>
+        [HttpGet("product-sync/configurations/{configurationId}")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 404)]
+        [ProducesResponseType(typeof(object), 500)]
+        public async Task<IActionResult> GetProductSyncConfiguration(string configurationId)
+        {
+            try
+            {
+                var configuration = await _productSyncConfigService.GetConfigurationByIdAsync(configurationId);
+                if (configuration == null)
+                {
+                    return NotFound(new { Success = false, Message = "Konfiguracja nie zosta³a znaleziona" });
+                }
+
+                return Ok(new
+                {
+                    Success = true,
+                    Configuration = configuration
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas pobierania konfiguracji synchronizacji produktów: {ConfigId}", configurationId);
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Dodaje lub aktualizuje konfiguracjê synchronizacji produktów.
+        /// </summary>
+        /// <param name="configuration">Konfiguracja do dodania/aktualizacji</param>
+        /// <returns>Potwierdzenie operacji</returns>
+        /// <response code="200">Konfiguracja zosta³a zapisana</response>
+        /// <response code="400">Nieprawid³owe dane konfiguracji</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas zapisywania</response>
+        [HttpPost("product-sync/configurations")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 400)]
+        [ProducesResponseType(typeof(object), 500)]
+        public async Task<IActionResult> SaveProductSyncConfiguration([FromBody] ProductSyncConfiguration configuration)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(configuration.Id))
+                {
+                    return BadRequest(new { Success = false, Message = "ID konfiguracji jest wymagane" });
+                }
+
+                if (string.IsNullOrWhiteSpace(configuration.Url))
+                {
+                    return BadRequest(new { Success = false, Message = "URL jest wymagany" });
+                }
+
+                var saved = await _productSyncConfigService.SaveConfigurationAsync(configuration);
+                if (saved)
+                {
+                    // Jeœli konfiguracja jest aktywna, utwórz/zaktualizuj odpowiadaj¹ce zadanie
+                    if (configuration.IsActive)
+                    {
+                        _schedulerService.AddOrUpdateJob(configuration.Id, new CronJobSchedule
+                        {
+                            Type = ScheduleType.Interval,
+                            IntervalSeconds = configuration.IntervalSeconds,
+                            Request = new CronJobRequest
+                            {
+                                Method = configuration.Method,
+                                Url = configuration.Url,
+                                UseOlmedAuth = configuration.UseOlmedAuth,
+                                Headers = configuration.Headers,
+                                Body = configuration.Body
+                            }
+                        });
+                        _logger.LogInformation("Utworzono/zaktualizowano zadanie dla konfiguracji: {ConfigId}", configuration.Id);
+                    }
+                    else
+                    {
+                        // Jeœli konfiguracja nieaktywna, usuñ zadanie ze schedulera
+                        _schedulerService.RemoveJob(configuration.Id);
+                        _logger.LogInformation("Usuniêto zadanie dla nieaktywnej konfiguracji: {ConfigId}", configuration.Id);
+                    }
+
+                    return Ok(new
+                    {
+                        Success = true,
+                        Message = "Konfiguracja zosta³a zapisana pomyœlnie",
+                        Configuration = configuration
+                    });
+                }
+                else
+                {
+                    return StatusCode(500, new { Success = false, Message = "Nie uda³o siê zapisaæ konfiguracji" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas zapisywania konfiguracji synchronizacji produktów: {ConfigId}", configuration?.Id);
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Aktualizuje konkretn¹ konfiguracjê synchronizacji produktów.
+        /// </summary>
+        /// <param name="configurationId">ID konfiguracji</param>
+        /// <param name="configuration">Konfiguracja do aktualizacji</param>
+        /// <returns>Potwierdzenie operacji</returns>
+        /// <response code="200">Konfiguracja zosta³a zaktualizowana</response>
+        /// <response code="400">Nieprawid³owe dane konfiguracji</response>
+        /// <response code="404">Konfiguracja nie zosta³a znaleziona</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas aktualizacji</response>
+        [HttpPut("product-sync/configurations/{configurationId}")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 400)]
+        [ProducesResponseType(typeof(object), 404)]
+        [ProducesResponseType(typeof(object), 500)]
+        public async Task<IActionResult> UpdateProductSyncConfiguration(string configurationId, [FromBody] ProductSyncConfiguration configuration)
+        {
+            try
+            {
+                // SprawdŸ czy konfiguracja istnieje
+                var existingConfig = await _productSyncConfigService.GetConfigurationByIdAsync(configurationId);
+                if (existingConfig == null)
+                {
+                    return NotFound(new { Success = false, Message = "Konfiguracja nie zosta³a znaleziona" });
+                }
+
+                // Upewnij siê ¿e ID siê zgadza
+                configuration.Id = configurationId;
+
+                if (string.IsNullOrWhiteSpace(configuration.Url))
+                {
+                    return BadRequest(new { Success = false, Message = "URL jest wymagany" });
+                }
+
+                var saved = await _productSyncConfigService.SaveConfigurationAsync(configuration);
+                if (saved)
+                {
+                    // Zarz¹dzaj zadaniami na podstawie statusu aktywnoœci
+                    if (configuration.IsActive)
+                    {
+                        _schedulerService.AddOrUpdateJob(configuration.Id, new CronJobSchedule
+                        {
+                            Type = ScheduleType.Interval,
+                            IntervalSeconds = configuration.IntervalSeconds,
+                            Request = new CronJobRequest
+                            {
+                                Method = configuration.Method,
+                                Url = configuration.Url,
+                                UseOlmedAuth = configuration.UseOlmedAuth,
+                                Headers = configuration.Headers,
+                                Body = configuration.Body
+                            }
+                        });
+                    }
+                    else
+                    {
+                        _schedulerService.RemoveJob(configuration.Id);
+                    }
+
+                    return Ok(new
+                    {
+                        Success = true,
+                        Message = "Konfiguracja zosta³a zaktualizowana pomyœlnie",
+                        Configuration = configuration
+                    });
+                }
+                else
+                {
+                    return StatusCode(500, new { Success = false, Message = "Nie uda³o siê zaktualizowaæ konfiguracji" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas aktualizacji konfiguracji synchronizacji produktów: {ConfigId}", configurationId);
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Usuwa konfiguracjê synchronizacji produktów.
+        /// </summary>
+        /// <param name="configurationId">ID konfiguracji do usuniêcia</param>
+        /// <returns>Potwierdzenie usuniêcia</returns>
+        /// <response code="200">Konfiguracja zosta³a usuniêta</response>
+        /// <response code="404">Konfiguracja nie zosta³a znaleziona</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas usuwania</response>
+        [HttpDelete("product-sync/configurations/{configurationId}")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 404)]
+        [ProducesResponseType(typeof(object), 500)]
+        public async Task<IActionResult> DeleteProductSyncConfiguration(string configurationId)
+        {
+            try
+            {
+                var deleted = await _productSyncConfigService.DeleteConfigurationAsync(configurationId);
+                if (deleted)
+                {
+                    // Usuñ równie¿ odpowiadaj¹ce zadanie ze schedulera jeœli istnieje
+                    _schedulerService.RemoveJob(configurationId);
+                    
+                    return Ok(new
+                    {
+                        Success = true,
+                        Message = "Konfiguracja i zwi¹zane zadanie zosta³y usuniête"
+                    });
+                }
+                else
+                {
+                    return NotFound(new { Success = false, Message = "Konfiguracja nie zosta³a znaleziona" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas usuwania konfiguracji synchronizacji produktów: {ConfigId}", configurationId);
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Odœwie¿a cache konfiguracji synchronizacji produktów.
+        /// </summary>
+        /// <returns>Potwierdzenie odœwie¿enia</returns>
+        /// <response code="200">Cache zosta³ odœwie¿ony</response>
+        [HttpPost("product-sync/refresh-cache")]
+        [ProducesResponseType(typeof(object), 200)]
+        public IActionResult RefreshProductSyncCache()
+        {
+            _productSyncConfigService.RefreshCache();
+            return Ok(new
+            {
+                Success = true,
+                Message = "Cache konfiguracji synchronizacji produktów zosta³ odœwie¿ony"
+            });
+        }
+
+        /// <summary>
+        /// £aduje zadania synchronizacji z aktualnej konfiguracji do schedulera.
+        /// </summary>
+        /// <returns>Potwierdzenie za³adowania zadañ</returns>
+        /// <response code="200">Zadania zosta³y za³adowane</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas ³adowania zadañ</response>
+        [HttpPost("product-sync/reload-jobs")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 500)]
+        public async Task<IActionResult> ReloadProductSyncJobs()
+        {
+            try
+            {
+                var configurations = await _productSyncConfigService.GetActiveConfigurationsAsync();
+                var loadedJobs = new List<string>();
+
+                foreach (var config in configurations)
+                {
+                    try
+                    {
+                        _schedulerService.AddOrUpdateJob(config.Id, new CronJobSchedule
+                        {
+                            Type = ScheduleType.Interval,
+                            IntervalSeconds = config.IntervalSeconds,
+                            Request = new CronJobRequest
+                            {
+                                Method = config.Method,
+                                Url = config.Url,
+                                UseOlmedAuth = config.UseOlmedAuth,
+                                Headers = config.Headers,
+                                Body = config.Body
+                            }
+                        });
+                        
+                        loadedJobs.Add(config.Id);
+                        _logger.LogInformation("Za³adowano zadanie synchronizacji: {JobId} - {Name}", config.Id, config.Name);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "B³¹d podczas ³adowania zadania synchronizacji: {JobId} - {Name}", config.Id, config.Name);
+                    }
+                }
+
+                return Ok(new
+                {
+                    Success = true,
+                    Message = $"Za³adowano {loadedJobs.Count} zadañ synchronizacji produktów",
+                    LoadedJobs = loadedJobs
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas ³adowania zadañ synchronizacji produktów");
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Prze³adowuje zadania synchronizacji produktów bezpoœrednio z CronSchedulerService.
+        /// Usuwa istniej¹ce zadania i ³aduje je ponownie z aktualnej konfiguracji.
+        /// </summary>
+        /// <returns>Potwierdzenie prze³adowania zadañ</returns>
+        /// <response code="200">Zadania zosta³y prze³adowane</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas prze³adowania zadañ</response>
+        [HttpPost("product-sync/reload-from-scheduler")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 500)]
+        public async Task<IActionResult> ReloadProductSyncJobsFromScheduler()
+        {
+            try
+            {
+                await _schedulerService.ReloadProductSyncJobs();
+
+                var activeJobs = _schedulerService.GetAllJobs()
+                    .Where(j => j.IsActive && (j.Id.StartsWith("olmed-") || j.Id.Contains("-sync-")))
+                    .ToList();
+
+                return Ok(new
+                {
+                    Success = true,
+                    Message = $"Prze³adowano zadania synchronizacji produktów z CronSchedulerService",
+                    ActiveSyncJobs = activeJobs.Count,
+                    Jobs = activeJobs.Select(j => new
+                    {
+                        j.Id,
+                        j.NextExecution,
+                        j.ExecutionCount,
+                        Url = j.Schedule.Request.Url,
+                        Method = j.Schedule.Request.Method,
+                        IntervalSeconds = j.Schedule.IntervalSeconds
+                    }).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas prze³adowania zadañ synchronizacji produktów z CronSchedulerService");
+                return StatusCode(500, new { Success = false, Message = ex.Message });
             }
         }
 

@@ -283,4 +283,107 @@ namespace Prosepo.Webhooks.Models
         /// </summary>
         Cron
     }
+
+    #region Product Sync Configuration Models - Modele konfiguracji synchronizacji produktów
+
+    /// <summary>
+    /// Konfiguracja synchronizacji produktów dla ró¿nych marketplace'ów.
+    /// Definiuje parametry ¿¹dañ HTTP i harmonogramu dla zadañ cyklicznych.
+    /// </summary>
+    public class ProductSyncConfiguration
+    {
+        /// <summary>
+        /// Unikalny identyfikator konfiguracji synchronizacji.
+        /// U¿ywany jako JobId w schedulerze zadañ cyklicznych.
+        /// </summary>
+        /// <example>olmed-sync-products</example>
+        public string Id { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Nazwa opisowa konfiguracji synchronizacji.
+        /// </summary>
+        /// <example>Synchronizacja produktów Olmed</example>
+        public string Name { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Czy konfiguracja jest aktywna.
+        /// Nieaktywne konfiguracje nie bêd¹ tworzone jako zadania cykliczne.
+        /// </summary>
+        public bool IsActive { get; set; } = true;
+
+        /// <summary>
+        /// Interwa³ wykonywania zadania w sekundach.
+        /// </summary>
+        /// <example>7200</example>
+        public int IntervalSeconds { get; set; } = 7200;
+
+        /// <summary>
+        /// Metoda HTTP ¿¹dania.
+        /// </summary>
+        /// <example>POST</example>
+        public string Method { get; set; } = "POST";
+
+        /// <summary>
+        /// URL endpointu API do synchronizacji produktów.
+        /// </summary>
+        /// <example>https://draft-csm-connector.grupaolmed.pl/erp-api/products/get-products</example>
+        public string Url { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Czy u¿ywaæ automatycznej autoryzacji Olmed.
+        /// </summary>
+        public bool UseOlmedAuth { get; set; } = true;
+
+        /// <summary>
+        /// Nag³ówki HTTP ¿¹dania.
+        /// </summary>
+        public Dictionary<string, string> Headers { get; set; } = new();
+
+        /// <summary>
+        /// Zawartoœæ ¿¹dania (body) w formacie JSON string.
+        /// </summary>
+        /// <example>{"marketplace": "APTEKA_OLMED"}</example>
+        public string Body { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Marketplace dla którego wykonywana jest synchronizacja.
+        /// U¿ywane w body ¿¹dania.
+        /// </summary>
+        /// <example>APTEKA_OLMED</example>
+        public string Marketplace { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Dodatkowe parametry specyficzne dla danego marketplace.
+        /// </summary>
+        public Dictionary<string, object> AdditionalParameters { get; set; } = new();
+
+        /// <summary>
+        /// Opis konfiguracji synchronizacji.
+        /// </summary>
+        public string Description { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Kolekcja konfiguracji synchronizacji produktów.
+    /// U¿ywana do deserializacji z pliku JSON.
+    /// </summary>
+    public class ProductSyncConfigurationCollection
+    {
+        /// <summary>
+        /// Lista konfiguracji synchronizacji produktów.
+        /// </summary>
+        public List<ProductSyncConfiguration> Configurations { get; set; } = new();
+
+        /// <summary>
+        /// Wersja konfiguracji - u¿yteczna do migracji.
+        /// </summary>
+        public string Version { get; set; } = "1.0";
+
+        /// <summary>
+        /// Czas ostatniej modyfikacji konfiguracji.
+        /// </summary>
+        public DateTime LastModified { get; set; } = DateTime.UtcNow;
+    }
+
+    #endregion
 }

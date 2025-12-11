@@ -1,0 +1,75 @@
+{
+  "version": "1.0",
+  "lastModified": "2024-12-19T10:00:00Z",
+  "configurations": [
+    {
+      "id": "olmed-sync-products-custom",
+      "name": "Niestandardowa synchronizacja produktów Olmed",
+      "description": "Przyk³ad w³asnej konfiguracji synchronizacji produktów z dodatkowymi parametrami",
+      "isActive": true,
+      "intervalSeconds": 10800,
+      "method": "POST", 
+      "url": "https://draft-csm-connector.grupaolmed.pl/erp-api/products/get-products",
+      "useOlmedAuth": true,
+      "headers": {
+        "accept": "application/json",
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": "",
+        "User-Agent": "Prosepo-Custom-Sync/1.0"
+      },
+      "body": "{\"marketplace\": \"APTEKA_OLMED\", \"includeInactive\": false, \"limit\": 1000}",
+      "marketplace": "APTEKA_OLMED",
+      "additionalParameters": {
+        "priority": "high",
+        "retryCount": 5,
+        "timeout": 60,
+        "includeInactive": false,
+        "batchSize": 1000
+      }
+    },
+    {
+      "id": "allegro-sync-products",
+      "name": "Synchronizacja produktów Allegro",
+      "description": "Przyk³ad synchronizacji z innym marketplace - Allegro",
+      "isActive": false,
+      "intervalSeconds": 3600,
+      "method": "GET",
+      "url": "https://api.allegro.pl/sale/offers",
+      "useOlmedAuth": false,
+      "headers": {
+        "accept": "application/vnd.allegro.public.v1+json",
+        "Authorization": "Bearer YOUR_ALLEGRO_TOKEN_HERE"
+      },
+      "body": "",
+      "marketplace": "ALLEGRO",
+      "additionalParameters": {
+        "priority": "medium",
+        "retryCount": 3,
+        "timeout": 30,
+        "sellerId": "12345"
+      }
+    },
+    {
+      "id": "webhook-processor",
+      "name": "Przetwarzanie webhook'ów",
+      "description": "Zadanie przetwarzaj¹ce kolejkê webhook'ów co 5 minut",
+      "isActive": true,
+      "intervalSeconds": 300,
+      "method": "POST",
+      "url": "http://localhost:5251/api/webhook/process-queue",
+      "useOlmedAuth": false,
+      "headers": {
+        "accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      "body": "{\"maxItems\": 100, \"timeoutSeconds\": 300}",
+      "marketplace": "",
+      "additionalParameters": {
+        "priority": "high",
+        "retryCount": 2,
+        "timeout": 300,
+        "maxItems": 100
+      }
+    }
+  ]
+}

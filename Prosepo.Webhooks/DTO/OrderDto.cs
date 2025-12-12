@@ -41,13 +41,22 @@ namespace Prosepo.Webhooks.DTO
         public string Remarks { get; set; } = string.Empty;
 
         [JsonPropertyName("realizationDatetime")]
-        public DateTime RealizationDatetime { get; set; }
+        public string RealizationDatetime { get; set; } = string.Empty;
 
         [JsonPropertyName("wmsStatus")]
         public int WmsStatus { get; set; }
 
         [JsonPropertyName("recipient")]
         public OrderRecipientDto Recipient { get; set; } = new();
+
+        [JsonPropertyName("buyer")]
+        public OrderBuyerDto Buyer { get; set; } = new();
+
+        [JsonPropertyName("invoice")]
+        public OrderInvoiceDto Invoice { get; set; } = new();
+
+        [JsonPropertyName("receiver")]
+        public OrderReceiverDto Receiver { get; set; } = new();
 
         [JsonPropertyName("isCOD")]
         public bool IsCOD { get; set; }
@@ -63,6 +72,12 @@ namespace Prosepo.Webhooks.DTO
 
         [JsonPropertyName("orderItems")]
         public List<OrderItemDto> OrderItems { get; set; } = new();
+
+        [JsonPropertyName("orderSummaries")]
+        public List<OrderSummaryDto> OrderSummaries { get; set; } = new();
+
+        [JsonPropertyName("marketplaceAdditionalData")]
+        public OrderMarketplaceAdditionalDataDto MarketplaceAdditionalData { get; set; } = new();
     }
 
 }

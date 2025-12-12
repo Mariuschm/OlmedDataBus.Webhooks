@@ -190,11 +190,19 @@ namespace Prosepo.Webhooks.Controllers
                     Converters = { new CustomDateTimeConverter() }
                 };
 
-                // Parsuj JSON aby sprawdziæ czy zawiera productData
+                // Parsuj JSON aby sprawdziæ czy zawiera productData lub orderData
                 using var document = JsonDocument.Parse(decryptedJson);
                 var root = document.RootElement;
                 
                 ProductDto? productData = null;
+                OrderDto? orderData = null;
+                string? changeType = null;
+
+                // SprawdŸ czy webhook zawiera changeType
+                if (root.TryGetProperty("changeType", out var changeTypeElement))
+                {
+                    changeType = changeTypeElement.GetString();
+                }
 
                 // SprawdŸ czy webhook zawiera productData
                 if (root.TryGetProperty("productData", out var productDataElement))
@@ -216,22 +224,44 @@ namespace Prosepo.Webhooks.Controllers
                     }
                 }
 
+                // SprawdŸ czy webhook zawiera orderData
+                if (root.TryGetProperty("orderData", out var orderDataElement))
+                {
+                    var orderDataJson = orderDataElement.GetRawText();
+                    orderData = JsonSerializer.Deserialize<OrderDto>(orderDataJson, jsonOptions);
+                }
+                // Jeœli ca³oœæ jest OrderDto (bez zagnie¿d¿enia)
+                else if (webhookType?.ToLower().Contains("order") == true)
+                {
+                    try
+                    {
+                        orderData = JsonSerializer.Deserialize<OrderDto>(decryptedJson, jsonOptions);
+                    }
+                    catch (JsonException)
+                    {
+                        // Nie uda³o siê deserializowaæ jako OrderDto
+                        orderData = null;
+                    }
+                }
+
+                // Pobierz konfiguracjê z appsettings
+                var defaultFirmaId = _configuration.GetValue<int>("Queue:DefaultFirmaId", 1);
+                var webhookProcessingFlag = _configuration.GetValue<int>("Queue:WebhookProcessingFlag", 0);
+                
+                // Pobierz nazwê firmy dla logowania
+                var companyName = "Unknown";
+                if (_firmyService != null)
+                {
+                    var company = await _firmyService.GetByIdAsync(defaultFirmaId);
+                    companyName = company?.NazwaFirmy ?? "Unknown";
+                }
+
+                // Przetwarzanie ProductDto
                 if (productData != null)
                 {
-                    // Pobierz konfiguracjê z appsettings
                     var productScope = _configuration.GetValue<int>("Queue:ProductScope", 16);
-                    var defaultFirmaId = _configuration.GetValue<int>("Queue:DefaultFirmaId", 1);
-                    var webhookProcessingFlag = _configuration.GetValue<int>("Queue:WebhookProcessingFlag", 0);
-                    
-                    // Pobierz nazwê firmy dla logowania
-                    var companyName = "Unknown";
-                    if (_firmyService != null)
-                    {
-                        var company = await _firmyService.GetByIdAsync(defaultFirmaId);
-                        companyName = company?.NazwaFirmy ?? "Unknown";
-                    }
 
-                    // Utwórz zadanie kolejki
+                    // Utwórz zadanie kolejki dla produktu
                     var queueItem = new Queue
                     {
                         FirmaId = defaultFirmaId,
@@ -247,8 +277,8 @@ namespace Prosepo.Webhooks.Controllers
                     // Dodaj do kolejki
                     var addedItem = await _queueService.AddAsync(queueItem);
 
-                    _logger.LogInformation("Dodano ProductDto do kolejki - GUID: {Guid}, SKU: {Sku}, QueueID: {QueueId}, Firma: {Firma}", 
-                        guid, productData.Sku, addedItem.Id, companyName);
+                    _logger.LogInformation("Dodano ProductDto do kolejki - GUID: {Guid}, SKU: {Sku}, QueueID: {QueueId}, Firma: {Firma}, ChangeType: {ChangeType}", 
+                        guid, productData.Sku, addedItem.Id, companyName, changeType ?? "N/A");
 
                     // Logowanie do pliku
                     await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
@@ -260,17 +290,58 @@ namespace Prosepo.Webhooks.Controllers
                             ProductId = productData.Id,
                             QueueId = addedItem.Id,
                             QueueScope = productScope,
-                            Company = companyName
+                            Company = companyName,
+                            ChangeType = changeType
+                        });
+                }
+
+                // Przetwarzanie OrderDto
+                if (orderData != null)
+                {
+                    var orderScope = _configuration.GetValue<int>("Queue:OrderScope", 17);
+
+                    // Utwórz zadanie kolejki dla zamówienia
+                    var queueItem = new Queue
+                    {
+                        FirmaId = defaultFirmaId,
+                        Scope = orderScope,
+                        Request = JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }),
+                        Description = "",//Always empty for new entries
+                        TargetID = 0, //Always zero for new entries
+                        Flg = webhookProcessingFlag,//Default flag for webhook processing = 0
+                        DateAddDateTime = DateTime.UtcNow,
+                        DateModDateTime = DateTime.UtcNow
+                    };
+
+                    // Dodaj do kolejki
+                    var addedItem = await _queueService.AddAsync(queueItem);
+
+                    _logger.LogInformation("Dodano OrderDto do kolejki - GUID: {Guid}, OrderNumber: {OrderNumber}, OrderID: {OrderId}, QueueID: {QueueId}, Firma: {Firma}, ChangeType: {ChangeType}", 
+                        guid, orderData.Number, orderData.Id, addedItem.Id, companyName, changeType ?? "N/A");
+
+                    // Logowanie do pliku
+                    await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
+                        "Dodano OrderDto do kolejki", null, new { 
+                            Guid = guid,
+                            WebhookType = webhookType,
+                            OrderNumber = orderData.Number,
+                            OrderId = orderData.Id,
+                            OrderMarketplace = orderData.Marketplace,
+                            OrderItemsCount = orderData.OrderItems?.Count ?? 0,
+                            QueueId = addedItem.Id,
+                            QueueScope = orderScope,
+                            Company = companyName,
+                            ChangeType = changeType
                         });
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "B³¹d podczas dodawania ProductDto do kolejki - GUID: {Guid}", guid);
+                _logger.LogError(ex, "B³¹d podczas dodawania do kolejki - GUID: {Guid}", guid);
                 
                 // Logowanie b³êdu do pliku
                 await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
-                    "B³¹d podczas dodawania ProductDto do kolejki", ex, new { 
+                    "B³¹d podczas dodawania do kolejki", ex, new { 
                         Guid = guid,
                         WebhookType = webhookType
                     });

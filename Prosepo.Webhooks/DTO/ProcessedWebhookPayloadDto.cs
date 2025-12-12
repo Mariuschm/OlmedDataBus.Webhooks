@@ -68,5 +68,11 @@ namespace Prosepo.Webhooks.DTO
         /// </summary>
         [JsonPropertyName("orderData")]
         public OrderDto? OrderData { get; set; }
+
+        /// <summary>
+        /// Gets or sets the change type for the webhook (e.g., "products", "orders").
+        /// </summary>
+        [JsonPropertyName("changeType")]
+        public string? ChangeType { get; set; }
     }
 }

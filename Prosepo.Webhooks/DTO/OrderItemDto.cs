@@ -15,6 +15,12 @@ namespace Prosepo.Webhooks.DTO
 
         [JsonPropertyName("quantityOrdered")]
         public decimal QuantityOrdered { get; set; }
+
+        [JsonPropertyName("price")]
+        public decimal Price { get; set; }
+
+        [JsonPropertyName("vatRate")]
+        public string VatRate { get; set; } = string.Empty;
     }
 
 }

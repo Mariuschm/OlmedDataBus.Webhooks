@@ -1,8 +1,0 @@
-{
-  "ReceivedAt": "2025-12-12T11:18:14.8739818Z",
-  "Guid": "85a4743aacebab73a5b17e399947ef5de6bed2333acd253809db5e427e0c6b87",
-  "WebhookType": "Order status changed",
-  "Signature": "955d6697be06a90c67166a83217916d8285407c534dfa814a2d94ceafabb8b9e",
-  "EncryptedData": "Wqy\u002BIsQQXssWCULuvlKv9fvJvHsXjWtbk9GhuyOZ2GUFKbau7vIOTQES8vAhjrKSVhCUFcI2nKdP81zsCbQbXUQ5a5xpNSYTp7Yw2pPSVivcMm\u002B0W\u002BW46YFrsedzF565SzM0W0gxxjx59IF4KefN0uvr0EvYfogd/iXuCYAbln5oYgn3h8sS2CIijccpOhWQKjrc0QoBAaWlDiTlV2YIkDEzdXSNLnbL1O88QwWmIGDgK3uu54ewyl5thnZ8ci13g3yH7wrNE4jQ8i6awDqUpr2e07lCxTabs/atKatmY0M=",
-  "ProcessingStatus": "Raw"
-}

@@ -1,8 +1,0 @@
-{
-  "ReceivedAt": "2025-12-09T10:44:25.7288084Z",
-  "Guid": "string",
-  "WebhookType": "string",
-  "Signature": "111",
-  "EncryptedData": "string",
-  "ProcessingStatus": "Raw"
-}

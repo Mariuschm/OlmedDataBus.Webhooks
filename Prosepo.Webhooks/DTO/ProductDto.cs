@@ -1,7 +1,43 @@
 ﻿using System.Text.Json.Serialization;
+using System.Text.Json;
+using System.Globalization;
+
 namespace Prosepo.Webhooks.DTO
 {
-  
+    /// <summary>
+    /// Custom JSON converter for DateTime that handles the format "yyyy-MM-dd HH:mm:ss"
+    /// </summary>
+    public class CustomDateTimeConverter : JsonConverter<DateTime>
+    {
+        private const string DateFormat = "yyyy-MM-dd HH:mm:ss";
+
+        public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var dateString = reader.GetString();
+            if (string.IsNullOrEmpty(dateString))
+            {
+                return default;
+            }
+
+            if (DateTime.TryParseExact(dateString, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var result))
+            {
+                return result;
+            }
+
+            // Fallback to standard parsing if custom format fails
+            if (DateTime.TryParse(dateString, out var fallbackResult))
+            {
+                return fallbackResult;
+            }
+
+            throw new JsonException($"Unable to parse '{dateString}' as DateTime. Expected format: {DateFormat}");
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString(DateFormat, CultureInfo.InvariantCulture));
+        }
+    }
 
     public class ProductDto
     {
@@ -75,6 +111,7 @@ namespace Prosepo.Webhooks.DTO
         public string Producer { get; set; } = string.Empty;
 
         [JsonPropertyName("lastModifyDateTime")]
+        [JsonConverter(typeof(CustomDateTimeConverter))]
         public DateTime LastModifyDateTime { get; set; }
 
         [JsonPropertyName("vatRate")]

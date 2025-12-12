@@ -20,28 +20,26 @@ namespace Prosepo.Webhooks.Controllers
         private readonly IConfiguration _configuration;
         private readonly CronSchedulerService _schedulerService;
         private readonly ProductSyncConfigurationService _productSyncConfigService;
+        private readonly IServiceProvider _serviceProvider;
         
         /// <summary>
-        /// Statyczny storage dla tokenów autoryzacji. 
-        /// W œrodowisku produkcyjnym warto rozwa¿yæ u¿ycie Redis lub innego cache'a.
-        /// </summary>
-        private static readonly Dictionary<string, TokenInfo> _tokenStorage = new();
-
-        /// <summary>
         /// Inicjalizuje now¹ instancjê CronController.
+        /// Token management jest delegowane do CronSchedulerService.
         /// </summary>
         /// <param name="httpClient">Klient HTTP do wykonywania ¿¹dañ</param>
         /// <param name="logger">Logger do rejestrowania zdarzeñ</param>
         /// <param name="configuration">Konfiguracja aplikacji</param>
         /// <param name="schedulerService">Serwis zarz¹dzaj¹cy zadaniami cyklicznymi</param>
         /// <param name="productSyncConfigurationService">Serwis zarz¹dzaj¹cy konfiguracj¹ synchronizacji produktów</param>
-        public CronController(HttpClient httpClient, ILogger<CronController> logger, IConfiguration configuration, CronSchedulerService schedulerService, ProductSyncConfigurationService productSyncConfigurationService)
+        /// <param name="serviceProvider">Service provider do tworzenia scope'ów</param>
+        public CronController(HttpClient httpClient, ILogger<CronController> logger, IConfiguration configuration, CronSchedulerService schedulerService, ProductSyncConfigurationService productSyncConfigurationService, IServiceProvider serviceProvider)
         {   
             _httpClient = httpClient;
             _logger = logger;            
             _configuration = configuration;
             _schedulerService = schedulerService;
             _productSyncConfigService = productSyncConfigurationService;
+            _serviceProvider = serviceProvider;
         }
 
         #region Scheduled Jobs Management - Zarz¹dzanie zadaniami cyklicznymi
@@ -120,7 +118,7 @@ namespace Prosepo.Webhooks.Controllers
         {
             var job = _schedulerService.GetJob(jobId);
             if (job == null)
-                return NotFound(new { Success = false, Message = "Zadanie nie zosta³o znalezione" });
+                return NotFound(new { Success = false, Message = "Zadanie nie zosta³a znaleziona" });
 
             return Ok(new { Success = true, Job = job });
         }
@@ -139,7 +137,7 @@ namespace Prosepo.Webhooks.Controllers
         {
             var removed = _schedulerService.RemoveJob(jobId);
             if (!removed)
-                return NotFound(new { Success = false, Message = "Zadanie nie zosta³o znalezione" });
+                return NotFound(new { Success = false, Message = "Zadanie nie zosta³a znaleziona" });
 
             return Ok(new { Success = true, Message = "Zadanie zosta³o usuniête" });
         }
@@ -230,16 +228,16 @@ namespace Prosepo.Webhooks.Controllers
 
         #endregion
 
-        #region Authentication Methods - Metody autoryzacji Olmed API
+        #region Authentication Methods - Metody autoryzacji Olmed API (Simplified Facades)
 
         /// <summary>
-        /// Wykonuje logowanie do API Olmed i przechowuje otrzymany token.
-        /// Implementuje dok³adnie ten sam curl command jak w dokumentacji API.
+        /// Wykonuje logowanie do API Olmed - uproszczona facade u¿ywaj¹ca wspó³dzielonego storage.
+        /// Minimalna implementacja bez duplikowania ca³ej logiki z CronSchedulerService.
         /// </summary>
-        /// <returns>Informacje o otrzymanym tokenie wraz z czasem wygaœniêcia</returns>
+        /// <returns>Informacje o tokenie</returns>
         /// <response code="200">Logowanie zakoñczone sukcesem</response>
-        /// <response code="400">B³¹d logowania - niepoprawne dane lub odpowiedŸ API</response>
-        /// <response code="500">B³¹d serwera podczas procesu logowania</response>
+        /// <response code="400">B³¹d logowania</response>
+        /// <response code="500">B³¹d serwera</response>
         [HttpPost("auth/olmed-login")]
         [ProducesResponseType(typeof(AuthResponse), 200)]
         [ProducesResponseType(typeof(AuthResponse), 400)]
@@ -248,46 +246,59 @@ namespace Prosepo.Webhooks.Controllers
         {
             try
             {
-                // Pobieranie danych autoryzacji z konfiguracji
+                _logger.LogInformation("API wywo³anie logowania Olmed - sprawdzanie istniej¹cego tokena");
+
+                // SprawdŸ czy ju¿ istnieje wa¿ny token
+                var existingToken = CronSchedulerService.GetOlmedToken();
+                if (existingToken != null)
+                {
+                    var remainingSeconds = (int)(existingToken.ExpiresAt - DateTime.UtcNow).TotalSeconds;
+                    _logger.LogInformation("Zwrócenie istniej¹cego wa¿nego tokena Olmed (wygasa za {Seconds}s)", remainingSeconds);
+                    
+                    return Ok(new AuthResponse
+                    {
+                        Success = true,
+                        Token = existingToken.Token,
+                        ExpiresAt = existingToken.ExpiresAt,
+                        ExpiresIn = remainingSeconds,
+                        Message = "Zwrócono istniej¹cy wa¿ny token"
+                    });
+                }
+
+                // Minimalna implementacja logowania - u¿ywa tego samego storage co CronSchedulerService
+                _logger.LogInformation("Brak wa¿nego tokena - wykonywanie nowego logowania przez CronController");
+                
                 var username = _configuration["OlmedAuth:Username"] ?? "test_prospeo";
                 var password = _configuration["OlmedAuth:Password"] ?? "pvRGowxF%266J%2AM%24";
                 var baseUrl = _configuration["OlmedAuth:BaseUrl"] ?? "https://draft-csm-connector.grupaolmed.pl";
                 
-                // Budowanie URL z parametrami query - zgodnie z dokumentacj¹ API Olmed
                 var loginUrl = $"{baseUrl}/erp-api/auth/login?username={username}&password={Uri.EscapeDataString(password)}";
 
-                _logger.LogInformation("Wykonywanie logowania Olmed: {Url}", baseUrl + "/erp-api/auth/login");
-
-                // Przygotowanie ¿¹dania HTTP - dok³adna replika curl command
                 var request = new HttpRequestMessage(HttpMethod.Post, loginUrl);
                 request.Headers.Add("accept", "application/json");
-                request.Headers.Add("X-CSRF-TOKEN", ""); // Wymagany pusty nag³ówek CSRF
+                request.Headers.Add("X-CSRF-TOKEN", "");
                 request.Content = new StringContent("", Encoding.UTF8);
 
-                // Wykonanie ¿¹dania logowania
                 var response = await _httpClient.SendAsync(request);
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
                 {
-                    // Parsowanie odpowiedzi JSON - oczekiwany format: { "access_token": "...", "expires_in": 3600, "token_type": "bearer" }
                     var authResponse = JsonSerializer.Deserialize<OlmedAuthResponse>(responseContent);
                     
                     if (authResponse != null && !string.IsNullOrEmpty(authResponse.Token))
                     {
-                        // Tworzenie obiektu z informacjami o tokenie
                         var tokenInfo = new TokenInfo
                         {
                             Token = authResponse.Token,
-                            ExpiresAt = DateTime.UtcNow.AddSeconds(authResponse.ExpiresIn ?? 3600), // Domyœlnie 1 godzina
+                            ExpiresAt = DateTime.UtcNow.AddSeconds(authResponse.ExpiresIn ?? 3600),
                             CreatedAt = DateTime.UtcNow
                         };
 
-                        // Przechowywanie tokena w statycznym storage
-                        // TODO: W œrodowisku produkcyjnym rozwa¿yæ u¿ycie Redis lub innego cache'a
-                        _tokenStorage["olmed"] = tokenInfo;
+                        // U¿yj wspólnego storage z CronSchedulerService
+                        CronSchedulerService.SetOlmedToken(tokenInfo);
 
-                        _logger.LogInformation("Token Olmed zosta³ zapisany. Wygasa: {ExpiresAt}", tokenInfo.ExpiresAt);
+                        _logger.LogInformation("Token Olmed zapisany przez CronController API. Wygasa: {ExpiresAt}", tokenInfo.ExpiresAt);
 
                         return Ok(new AuthResponse
                         {
@@ -300,10 +311,6 @@ namespace Prosepo.Webhooks.Controllers
                     }
                 }
 
-                // Logowanie nieudanego logowania z szczegó³ami odpowiedzi
-                _logger.LogWarning("Nieudane logowanie Olmed: {StatusCode} - {Content}", 
-                    response.StatusCode, responseContent);
-
                 return BadRequest(new AuthResponse
                 {
                     Success = false,
@@ -312,7 +319,7 @@ namespace Prosepo.Webhooks.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "B³¹d podczas logowania Olmed");
+                _logger.LogError(ex, "B³¹d podczas logowania Olmed przez CronController API");
                 return StatusCode(500, new AuthResponse
                 {
                     Success = false,
@@ -322,46 +329,27 @@ namespace Prosepo.Webhooks.Controllers
         }
 
         /// <summary>
-        /// Pobiera informacje o aktualnie przechowywanym tokenie Olmed.
-        /// Sprawdza czy token jest jeszcze wa¿ny i zwraca informacje o jego stanie.
+        /// Pobiera informacje o aktualnym tokenie Olmed - facade do CronSchedulerService.
         /// </summary>
-        /// <returns>Informacje o tokenie lub b³¹d jeœli token nie istnieje lub wygas³</returns>
-        /// <response code="200">Token jest aktywny</response>
-        /// <response code="400">Token wygas³</response>
-        /// <response code="404">Brak zapisanego tokena</response>
         [HttpGet("auth/olmed-token")]
         [ProducesResponseType(typeof(AuthResponse), 200)]
-        [ProducesResponseType(typeof(AuthResponse), 400)]
         [ProducesResponseType(typeof(AuthResponse), 404)]
         public IActionResult GetOlmedToken()
         {
-            if (_tokenStorage.TryGetValue("olmed", out var tokenInfo))
+            var tokenInfo = CronSchedulerService.GetOlmedToken();
+            
+            if (tokenInfo != null)
             {
-                // Sprawdzenie czy token jeszcze nie wygas³
-                if (tokenInfo.ExpiresAt > DateTime.UtcNow)
+                var remainingSeconds = (int)(tokenInfo.ExpiresAt - DateTime.UtcNow).TotalSeconds;
+                
+                return Ok(new AuthResponse
                 {
-                    // Obliczanie pozosta³ego czasu wa¿noœci tokena
-                    var remainingSeconds = (int)(tokenInfo.ExpiresAt - DateTime.UtcNow).TotalSeconds;
-                    
-                    return Ok(new AuthResponse
-                    {
-                        Success = true,
-                        Token = tokenInfo.Token,
-                        ExpiresAt = tokenInfo.ExpiresAt,
-                        ExpiresIn = remainingSeconds,
-                        Message = "Token jest aktywny"
-                    });
-                }
-                else
-                {
-                    // Token wygas³ - automatyczne usuniêcie ze storage
-                    _tokenStorage.Remove("olmed");
-                    return BadRequest(new AuthResponse
-                    {
-                        Success = false,
-                        Message = "Token wygas³"
-                    });
-                }
+                    Success = true,
+                    Token = tokenInfo.Token,
+                    ExpiresAt = tokenInfo.ExpiresAt,
+                    ExpiresIn = remainingSeconds,
+                    Message = "Token jest aktywny"
+                });
             }
 
             return NotFound(new AuthResponse
@@ -372,69 +360,60 @@ namespace Prosepo.Webhooks.Controllers
         }
 
         /// <summary>
-        /// Inteligentne odœwie¿anie tokena - sprawdza czy token wymaga odœwie¿enia i wykonuje odpowiedni¹ akcjê.
-        /// Logika dzia³ania:
-        /// 1. Jeœli token jest wa¿ny przez wiêcej ni¿ 5 minut - zwraca aktualny token
-        /// 2. Jeœli token wygasa wkrótce - próbuje refresh przez /auth/refresh
-        /// 3. Jeœli refresh siê nie powiedzie - wykonuje pe³ne logowanie
+        /// Inteligentne odœwie¿anie tokena - facade wykorzystuj¹ce CronSchedulerService.
         /// </summary>
-        /// <returns>Aktualny lub odœwie¿ony token</returns>
-        /// <response code="200">Token jest aktywny lub zosta³ pomyœlnie odœwie¿ony</response>
-        /// <response code="400">B³¹d podczas odœwie¿ania tokena</response>
-        /// <response code="500">B³¹d serwera podczas procesu odœwie¿ania</response>
         [HttpPost("auth/refresh-if-needed")]
         [ProducesResponseType(typeof(AuthResponse), 200)]
         [ProducesResponseType(typeof(AuthResponse), 400)]
         [ProducesResponseType(typeof(AuthResponse), 500)]
         public async Task<IActionResult> RefreshTokenIfNeeded()
         {
-            if (_tokenStorage.TryGetValue("olmed", out var tokenInfo))
+            var tokenInfo = CronSchedulerService.GetOlmedToken();
+            
+            if (tokenInfo != null)
             {
-                // Sprawdzenie czy token wygasa w ci¹gu 5 minut - proaktywne odœwie¿anie
+                // Sprawdzenie czy token wygasa w ci¹gu 5 minut
                 if (tokenInfo.ExpiresAt > DateTime.UtcNow.AddMinutes(5))
                 {
+                    var remainingSeconds = (int)(tokenInfo.ExpiresAt - DateTime.UtcNow).TotalSeconds;
                     return Ok(new AuthResponse
                     {
                         Success = true,
                         Token = tokenInfo.Token,
                         ExpiresAt = tokenInfo.ExpiresAt,
+                        ExpiresIn = remainingSeconds,
                         Message = "Token jest jeszcze aktywny"
                     });
                 }
 
-                // Token wygasa wkrótce lub ju¿ wygas³ - próba odœwie¿enia
-                _logger.LogInformation("Token wygasa wkrótce - próba odœwie¿enia");
-                var refreshResult = await TryRefreshToken(tokenInfo.Token);
+                _logger.LogInformation("Token wygasa wkrótce - próba odœwie¿enia przez uproszczony refresh");
+                
+                // Uproszczona próba refresh
+                var refreshResult = await SimpleRefreshToken(tokenInfo.Token);
                 if (refreshResult != null)
                 {
                     return Ok(refreshResult);
                 }
             }
 
-            // Brak tokena lub refresh siê nie powiód³ - pe³ne logowanie jako fallback
-            _logger.LogInformation("Refresh tokena nieudany lub brak tokena - wykonywanie pe³nego logowania");
+            // Fallback - pe³ne logowanie
+            _logger.LogInformation("Refresh nieudany lub brak tokena - wykonywanie pe³nego logowania");
             return await OlmedLogin();
         }
 
         /// <summary>
-        /// Prywatna metoda próbuj¹ca odœwie¿yæ token przez endpoint /auth/refresh.
-        /// Implementuje dok³adnie ten sam curl command jak w dokumentacji API.
+        /// Uproszczona metoda refresh tokena.
         /// </summary>
-        /// <param name="currentToken">Aktualny token do odœwie¿enia</param>
-        /// <returns>Nowy token jeœli operacja siê powiod³a, null w przeciwnym przypadku</returns>
-        private async Task<AuthResponse?> TryRefreshToken(string currentToken)
+        private async Task<AuthResponse?> SimpleRefreshToken(string currentToken)
         {
             try
             {
                 var baseUrl = _configuration["OlmedAuth:BaseUrl"] ?? "https://draft-csm-connector.grupaolmed.pl";
                 var refreshUrl = $"{baseUrl}/erp-api/auth/refresh";
 
-                _logger.LogInformation("Wykonywanie refresh tokena Olmed: {Url}", refreshUrl);
-
-                // Przygotowanie ¿¹dania refresh - dok³adna replika curl command
                 var request = new HttpRequestMessage(HttpMethod.Post, refreshUrl);
                 request.Headers.Add("accept", "application/json");
-                request.Headers.Add("Authorization", $"Bearer {currentToken}"); // U¿ycie aktualnego tokena
+                request.Headers.Add("Authorization", $"Bearer {currentToken}");
                 request.Headers.Add("X-CSRF-TOKEN", "");
                 request.Content = new StringContent("", Encoding.UTF8);
 
@@ -443,12 +422,10 @@ namespace Prosepo.Webhooks.Controllers
 
                 if (response.IsSuccessStatusCode)
                 {
-                    // Parsowanie odpowiedzi - oczekiwany ten sam format co przy logowaniu
                     var authResponse = JsonSerializer.Deserialize<OlmedAuthResponse>(responseContent);
                     
                     if (authResponse != null && !string.IsNullOrEmpty(authResponse.Token))
                     {
-                        // Tworzenie nowego obiektu tokena
                         var tokenInfo = new TokenInfo
                         {
                             Token = authResponse.Token,
@@ -456,10 +433,7 @@ namespace Prosepo.Webhooks.Controllers
                             CreatedAt = DateTime.UtcNow
                         };
 
-                        // Zast¹pienie starego tokena nowym w storage
-                        _tokenStorage["olmed"] = tokenInfo;
-
-                        _logger.LogInformation("Token Olmed zosta³ odœwie¿ony. Nowy token wygasa: {ExpiresAt}", tokenInfo.ExpiresAt);
+                        CronSchedulerService.SetOlmedToken(tokenInfo);
 
                         return new AuthResponse
                         {
@@ -467,21 +441,111 @@ namespace Prosepo.Webhooks.Controllers
                             Token = authResponse.Token,
                             ExpiresAt = tokenInfo.ExpiresAt,
                             ExpiresIn = authResponse.ExpiresIn ?? 3600,
-                            Message = "Token zosta³ pomyœlnie odœwie¿ony"
+                            Message = "Token zosta³ odœwie¿ony"
                         };
                     }
                 }
 
-                // Logowanie nieudanego refresh z szczegó³ami
-                _logger.LogWarning("Nieudany refresh tokena Olmed: {StatusCode} - {Content}", 
-                    response.StatusCode, responseContent);
-                
-                return null; // Refresh siê nie powiód³ - bêdzie wykonane pe³ne logowanie
+                return null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "B³¹d podczas refresh tokena Olmed");
-                return null; // Refresh siê nie powiód³
+                _logger.LogError(ex, "B³¹d podczas refresh tokena");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Wylogowanie z API Olmed - facade do CronSchedulerService.
+        /// </summary>
+        [HttpPost("auth/olmed-logout")]
+        [ProducesResponseType(typeof(AuthResponse), 200)]
+        [ProducesResponseType(typeof(AuthResponse), 400)]
+        [ProducesResponseType(typeof(AuthResponse), 500)]
+        public async Task<IActionResult> OlmedLogout()
+        {
+            try
+            {
+                var tokenInfo = CronSchedulerService.GetOlmedToken();
+                if (tokenInfo == null)
+                {
+                    return Ok(new AuthResponse
+                    {
+                        Success = true,
+                        Message = "Brak aktywnego tokena do wylogowania"
+                    });
+                }
+
+                var baseUrl = _configuration["OlmedAuth:BaseUrl"] ?? "https://draft-csm-connector.grupaolmed.pl";
+                var logoutUrl = $"{baseUrl}/erp-api/auth/logout";
+
+                var request = new HttpRequestMessage(HttpMethod.Post, logoutUrl);
+                request.Headers.Add("accept", "application/json");
+                request.Headers.Add("Authorization", $"Bearer {tokenInfo.Token}");
+                request.Headers.Add("X-CSRF-TOKEN", "");
+                request.Content = new StringContent("", Encoding.UTF8);
+
+                var response = await _httpClient.SendAsync(request);
+
+                // Zawsze usuñ token ze storage
+                CronSchedulerService.RemoveOlmedToken();
+
+                return Ok(new AuthResponse
+                {
+                    Success = response.IsSuccessStatusCode,
+                    Message = response.IsSuccessStatusCode ? "Logout wykonany pomyœlnie" : "Logout nieudany, ale token usuniêty ze storage"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas logout");
+                CronSchedulerService.RemoveOlmedToken(); // Cleanup
+                return StatusCode(500, new AuthResponse
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Manualny refresh tokena - facade do uproszczonej logiki.
+        /// </summary>
+        [HttpPost("auth/olmed-refresh")]
+        [ProducesResponseType(typeof(AuthResponse), 200)]
+        [ProducesResponseType(typeof(AuthResponse), 400)]
+        [ProducesResponseType(typeof(AuthResponse), 500)]
+        public async Task<IActionResult> OlmedRefreshToken()
+        {
+            try
+            {
+                var tokenInfo = CronSchedulerService.GetOlmedToken();
+                if (tokenInfo == null)
+                {
+                    return BadRequest(new AuthResponse
+                    {
+                        Success = false,
+                        Message = "Brak tokena do odœwie¿enia. Wykonaj najpierw logowanie."
+                    });
+                }
+
+                var refreshResult = await SimpleRefreshToken(tokenInfo.Token);
+                if (refreshResult != null)
+                {
+                    return Ok(refreshResult);
+                }
+
+                // Fallback - pe³ne logowanie
+                return await OlmedLogin();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas refresh tokena");
+                return StatusCode(500, new AuthResponse
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
             }
         }
 
@@ -526,10 +590,11 @@ namespace Prosepo.Webhooks.Controllers
                 // Automatyczne dodanie tokena Olmed dla ¿¹dañ do API Olmed
                 if (request.Url.Contains("grupaolmed.pl") && request.UseOlmedAuth == true)
                 {
-                    if (_tokenStorage.TryGetValue("olmed", out var tokenInfo) && tokenInfo.ExpiresAt > DateTime.UtcNow)
+                    var tokenInfo = CronSchedulerService.GetOlmedToken();
+                    if (tokenInfo != null)
                     {
                         httpRequest.Headers.TryAddWithoutValidation("Authorization", $"Bearer {tokenInfo.Token}");
-                        _logger.LogInformation("Dodano token Olmed do ¿¹dania");
+                        _logger.LogInformation("Dodano token Olmed do ¿¹dania (wygasa: {ExpiresAt})", tokenInfo.ExpiresAt);
                     }
                     else
                     {
@@ -813,139 +878,6 @@ namespace Prosepo.Webhooks.Controllers
                 });
             }
         }
-
-        #region Logout Methods - Metody wylogowania
-
-        /// <summary>
-        /// Wykonuje wylogowanie z API Olmed i usuwa token ze storage.
-        /// Implementuje dok³adnie ten sam curl command jak w dokumentacji API.
-        /// Token jest usuwany ze storage niezale¿nie od wyniku operacji logout.
-        /// </summary>
-        /// <returns>Potwierdzenie wylogowania</returns>
-        /// <response code="200">Wylogowanie zakoñczone sukcesem lub brak aktywnego tokena</response>
-        /// <response code="400">B³¹d podczas wylogowania</response>
-        /// <response code="500">B³¹d serwera podczas wylogowania</response>
-        [HttpPost("auth/olmed-logout")]
-        [ProducesResponseType(typeof(AuthResponse), 200)]
-        [ProducesResponseType(typeof(AuthResponse), 400)]
-        [ProducesResponseType(typeof(AuthResponse), 500)]
-        public async Task<IActionResult> OlmedLogout()
-        {
-            try
-            {
-                // Sprawdzenie czy istnieje aktywny token
-                if (!_tokenStorage.TryGetValue("olmed", out var tokenInfo) || tokenInfo.ExpiresAt <= DateTime.UtcNow)
-                {
-                    _logger.LogInformation("Brak aktywnego tokena Olmed - pomijanie logout");
-                    return Ok(new AuthResponse
-                    {
-                        Success = true,
-                        Message = "Brak aktywnego tokena do wylogowania"
-                    });
-                }
-
-                var baseUrl = _configuration["OlmedAuth:BaseUrl"] ?? "https://draft-csm-connector.grupaolmed.pl";
-                var logoutUrl = $"{baseUrl}/erp-api/auth/logout";
-
-                _logger.LogInformation("Wykonywanie logout z Olmed API: {Url}", logoutUrl);
-
-                // Przygotowanie ¿¹dania logout - dok³adna replika curl command
-                var request = new HttpRequestMessage(HttpMethod.Post, logoutUrl);
-                request.Headers.Add("accept", "application/json");
-                request.Headers.Add("Authorization", $"Bearer {tokenInfo.Token}"); // U¿ycie aktualnego tokena
-                request.Headers.Add("X-CSRF-TOKEN", "");
-                request.Content = new StringContent("", Encoding.UTF8);
-
-                var response = await _httpClient.SendAsync(request);
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                // WA¯NE: Token jest usuwany niezale¿nie od wyniku logout
-                // Zapobiega to problemom z "nieœmiertelnymi" tokenami w storage
-                _tokenStorage.Remove("olmed");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation("Logout z Olmed API wykonany pomyœlnie");
-                    return Ok(new AuthResponse
-                    {
-                        Success = true,
-                        Message = "Logout wykonany pomyœlnie"
-                    });
-                }
-                else
-                {
-                    _logger.LogWarning("Logout z Olmed API nieudany: {StatusCode} - {Content}", 
-                        response.StatusCode, responseContent);
-                    return BadRequest(new AuthResponse
-                    {
-                        Success = false,
-                        Message = $"B³¹d logout: {response.StatusCode} - {responseContent}"
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "B³¹d podczas logout z Olmed API");
-                // Usuñ token ze storage nawet przy b³êdzie - cleanup na wszelki wypadek
-                _tokenStorage.Remove("olmed");
-                return StatusCode(500, new AuthResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
-            }
-        }
-
-        /// <summary>
-        /// Manualnie wymusza odœwie¿enie tokena przez endpoint /auth/refresh.
-        /// Jeœli refresh siê nie powiedzie, automatycznie wykonuje pe³ne logowanie.
-        /// </summary>
-        /// <returns>Nowy lub aktualny token</returns>
-        /// <response code="200">Token zosta³ pomyœlnie odœwie¿ony lub wykonane pe³ne logowanie</response>
-        /// <response code="400">Brak tokena do odœwie¿enia</response>
-        /// <response code="500">B³¹d serwera podczas odœwie¿ania</response>
-        [HttpPost("auth/olmed-refresh")]
-        [ProducesResponseType(typeof(AuthResponse), 200)]
-        [ProducesResponseType(typeof(AuthResponse), 400)]
-        [ProducesResponseType(typeof(AuthResponse), 500)]
-        public async Task<IActionResult> OlmedRefreshToken()
-        {
-            try
-            {
-                // Sprawdzenie czy istnieje token do odœwie¿enia
-                if (!_tokenStorage.TryGetValue("olmed", out var tokenInfo))
-                {
-                    _logger.LogInformation("Brak tokena do odœwie¿enia");
-                    return BadRequest(new AuthResponse
-                    {
-                        Success = false,
-                        Message = "Brak tokena do odœwie¿enia. Wykonaj najpierw logowanie."
-                    });
-                }
-
-                // Próba odœwie¿enia z aktualnym tokenem
-                var refreshResult = await TryRefreshToken(tokenInfo.Token);
-                if (refreshResult != null)
-                {
-                    return Ok(refreshResult);
-                }
-
-                // Fallback: jeœli refresh siê nie powiód³, wykonaj pe³ne logowanie
-                _logger.LogInformation("Refresh tokena nieudany - wykonywanie pe³nego logowania");
-                return await OlmedLogin();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "B³¹d podczas refresh tokena Olmed");
-                return StatusCode(500, new AuthResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
-            }
-        }
-
-        #endregion
 
         /// <summary>
         /// Pobiera szczegó³owe informacje o stanie schedulera.
@@ -1232,7 +1164,7 @@ namespace Prosepo.Webhooks.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "B³¹d podczas aktualizacji konfiguracji synchronizacji produktów: {ConfigId}", configurationId);
+                _logger.LogError(ex, "B³¹d podczas aktualizacji configuracji synchronizacji produktów: {ConfigId}", configurationId);
                 return StatusCode(500, new { Success = false, Message = ex.Message });
             }
         }

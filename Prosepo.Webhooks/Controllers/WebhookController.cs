@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Prosepo.Webhooks.DTO;
 using Prosepo.Webhooks.Services;
+using Prospeo.DbContext.Services;
+using Prospeo.DbContext.Models;
 using SecureWebhook;
 using System.Text.Json;
 
@@ -13,12 +15,13 @@ namespace Prosepo.Webhooks.Controllers
     [ApiController]
     [Route("api/[controller]")]
     public class WebhookController : ControllerBase
-    {
+    {   
         private readonly SecureWebhookHelper _helper;
         private readonly ILogger<WebhookController> _logger;
         private readonly IConfiguration _configuration;
         private readonly string _webhookDataDirectory;
         private readonly FileLoggingService _fileLoggingService;
+        private readonly IQueueService? _queueService;
 
         /// <summary>
         /// Inicjalizuje now¹ instancjê WebhookController.
@@ -26,7 +29,9 @@ namespace Prosepo.Webhooks.Controllers
         /// <param name="configuration">Konfiguracja aplikacji</param>
         /// <param name="logger">Logger do rejestrowania zdarzeñ</param>
         /// <param name="fileLoggingService">Serwis logowania do plików</param>
-        public WebhookController(IConfiguration configuration, ILogger<WebhookController> logger, FileLoggingService fileLoggingService)
+        /// <param name="queueService">Serwis obs³ugi kolejki (opcjonalny)</param>
+        public WebhookController(IConfiguration configuration, ILogger<WebhookController> logger, 
+            FileLoggingService fileLoggingService, IQueueService? queueService = null)
         {
             var encryptionKey = configuration["OlmedDataBus:WebhookKeys:EncryptionKey"] ?? string.Empty;
             var hmacKey = configuration["OlmedDataBus:WebhookKeys:HmacKey"] ?? string.Empty;
@@ -34,6 +39,7 @@ namespace Prosepo.Webhooks.Controllers
             _logger = logger;
             _configuration = configuration;
             _fileLoggingService = fileLoggingService;
+            _queueService = queueService;
 
             // Tworzenie katalogu dla zapisywania danych webhook
             _webhookDataDirectory = _configuration["WebhookStorage:Directory"] ?? Path.Combine(Directory.GetCurrentDirectory(), "WebhookData");
@@ -95,6 +101,9 @@ namespace Prosepo.Webhooks.Controllers
 
                 // Zapisanie odszyfrowanych danych
                 await SaveDecryptedWebhookData(payload.guid, payload.webhookType, json);
+
+                // Dodanie ProductDto do kolejki jeœli webhook zawiera dane produktu
+                await AddProductToQueueIfApplicable(payload.guid, payload.webhookType, json);
 
                 var processingTime = DateTime.UtcNow - processingStartTime;
 
@@ -231,17 +240,44 @@ namespace Prosepo.Webhooks.Controllers
                 var filename = $"webhook_decrypted_{webhookType}_{guid}_{timestamp}.json";
                 var filePath = Path.Combine(_webhookDataDirectory, filename);
 
-                // Parsowanie JSON w celu ³adnego formatowania
+                // Parsowanie JSON w celu ³adnego formatowania i przetworzenia productData
                 object? parsedJson = null;
+                ProductDto? productData = null;
+                
+                // JsonSerializerOptions z custom converter dla DateTime
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    Converters = { new CustomDateTimeConverter() }
+                };
+                
                 try
                 {
+                    // Najpierw sparsuj jako JsonDocument aby sprawdziæ strukturê
+                    using var document = JsonDocument.Parse(decryptedJson);
+                    var root = document.RootElement;
+                    
+                    // SprawdŸ czy zawiera productData
+                    if (root.TryGetProperty("productData", out var productDataElement))
+                    {
+                        // Deserializuj productData do ProductDto
+                        var productDataJson = productDataElement.GetRawText();
+                        productData = JsonSerializer.Deserialize<ProductDto>(productDataJson, jsonOptions);
+                        
+                        _logger.LogInformation("Pomyœlnie zmapowano productData do ProductDto - GUID: {Guid}, Product SKU: {Sku}", 
+                            guid, productData?.Sku ?? "N/A");
+                    }
+                    
+                    // Parsuj ca³y JSON dla ³adnego formatowania
                     parsedJson = JsonSerializer.Deserialize<object>(decryptedJson);
                 }
-                catch
+                catch (JsonException jsonEx)
                 {
+                    _logger.LogWarning(jsonEx, "Nie uda³o siê sparsowaæ JSON jako strukturalny obiekt - GUID: {Guid}", guid);
                     // Jeœli parsowanie siê nie powiedzie, u¿yj surowego stringa
                     parsedJson = decryptedJson;
                 }
+
 
                 // Tworzenie obiektu z metadanymi i odszyfrowanymi danymi
                 var webhookRecord = new
@@ -250,7 +286,9 @@ namespace Prosepo.Webhooks.Controllers
                     Guid = guid,
                     WebhookType = webhookType,
                     ProcessingStatus = "Decrypted",
-                    DecryptedData = parsedJson
+                    DecryptedData = parsedJson,
+                    ProductData = productData, // Dodaj zmapowany ProductDto jeœli istnieje
+                    ContainsProductData = productData != null
                 };
 
                 var jsonContent = JsonSerializer.Serialize(webhookRecord, new JsonSerializerOptions 
@@ -258,17 +296,22 @@ namespace Prosepo.Webhooks.Controllers
                     WriteIndented = true 
                 });
 
+
+
                 await System.IO.File.WriteAllTextAsync(filePath, jsonContent);
                 _logger.LogInformation("Zapisano odszyfrowane dane webhook do pliku: {FilePath}", filePath);
 
-                // Logowanie do pliku
+                // Logowanie do pliku z informacj¹ o productData
                 await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
                     "Zapisano odszyfrowane dane webhook", null, new { 
                         Guid = guid,
                         WebhookType = webhookType,
                         FileName = filename,
                         FilePath = filePath,
-                        DecryptedDataSize = decryptedJson?.Length ?? 0
+                        DecryptedDataSize = decryptedJson?.Length ?? 0,
+                        ContainsProductData = productData != null,
+                        ProductSku = productData?.Sku,
+                        ProductName = productData?.Name
                     });
             }
             catch (Exception ex)
@@ -278,6 +321,108 @@ namespace Prosepo.Webhooks.Controllers
                 // Logowanie b³êdu do pliku
                 await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
                     "B³¹d podczas zapisywania odszyfrowanych danych webhook", ex, new { 
+                        Guid = guid,
+                        WebhookType = webhookType
+                    });
+            }
+        }
+
+        /// <summary>
+        /// Dodaje ProductDto do kolejki jeœli webhook zawiera odpowiednie dane produktu.
+        /// </summary>
+        /// <param name="guid">Identyfikator webhook</param>
+        /// <param name="webhookType">Typ webhook</param>
+        /// <param name="decryptedJson">Odszyfrowane dane JSON</param>
+        /// <returns>Task reprezentuj¹cy operacjê asynchroniczn¹</returns>
+        private async Task AddProductToQueueIfApplicable(string guid, string webhookType, string decryptedJson)
+        {
+            // SprawdŸ czy serwis kolejki jest dostêpny
+            if (_queueService == null)
+            {
+                _logger.LogWarning("QueueService nie jest dostêpny - pominiêto dodanie do kolejki - GUID: {Guid}", guid);
+                return;
+            }
+
+            try
+            {
+                // JsonSerializerOptions z custom converter dla DateTime
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    Converters = { new CustomDateTimeConverter() }
+                };
+
+                // Parsuj JSON aby sprawdziæ czy zawiera productData
+                using var document = JsonDocument.Parse(decryptedJson);
+                var root = document.RootElement;
+                
+                ProductDto? productData = null;
+
+                // SprawdŸ czy webhook zawiera productData
+                if (root.TryGetProperty("productData", out var productDataElement))
+                {
+                    var productDataJson = productDataElement.GetRawText();
+                    productData = JsonSerializer.Deserialize<ProductDto>(productDataJson, jsonOptions);
+                }
+                // Jeœli ca³oœæ jest ProductDto (bez zagnie¿d¿enia)
+                else if (webhookType?.ToLower().Contains("product") == true)
+                {
+                    try
+                    {
+                        productData = JsonSerializer.Deserialize<ProductDto>(decryptedJson, jsonOptions);
+                    }
+                    catch (JsonException)
+                    {
+                        // Nie uda³o siê deserializowaæ jako ProductDto
+                        productData = null;
+                    }
+                }
+
+                if (productData != null)
+                {
+                    // Pobierz konfiguracjê z appsettings
+                    var productScope = _configuration.GetValue<int>("Queue:ProductScope", 16);
+                    var defaultFirmaId = _configuration.GetValue<int>("Queue:DefaultFirmaId", 1);
+                    var webhookProcessingFlag = _configuration.GetValue<int>("Queue:WebhookProcessingFlag", 1002);
+
+                    // Utwórz zadanie kolejki
+                    var queueItem = new Prospeo.DbContext.Models.Queue
+                    {
+                        FirmaId = defaultFirmaId,
+                        Scope = productScope,
+                        Request = JsonSerializer.Serialize(productData, new JsonSerializerOptions { WriteIndented = true }),
+                        Description = $"Webhook Product Update - SKU: {productData.Sku}, Name: {productData.Name}",
+                        TargetID = productData.Id,
+                        Flg = webhookProcessingFlag,
+                        DateAddDateTime = DateTime.UtcNow,
+                        DateModDateTime = DateTime.UtcNow
+                    };
+
+                    // Dodaj do kolejki
+                    var addedItem = await _queueService.AddAsync(queueItem);
+
+                    _logger.LogInformation("Dodano ProductDto do kolejki - GUID: {Guid}, SKU: {Sku}, QueueID: {QueueId}", 
+                        guid, productData.Sku, addedItem.Id);
+
+                    // Logowanie do pliku
+                    await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
+                        "Dodano ProductDto do kolejki", null, new { 
+                            Guid = guid,
+                            WebhookType = webhookType,
+                            ProductSku = productData.Sku,
+                            ProductName = productData.Name,
+                            QueueId = addedItem.Id,
+                            QueueScope = productScope
+                        });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas dodawania ProductDto do kolejki - GUID: {Guid}", guid);
+                
+                // Logowanie b³êdu do pliku
+                await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
+                    "B³¹d podczas dodawania ProductDto do kolejki", ex, new { 
                         Guid = guid,
                         WebhookType = webhookType
                     });
@@ -338,6 +483,249 @@ namespace Prosepo.Webhooks.Controllers
                     "B³¹d podczas pobierania listy plików logów", ex);
                 
                 return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Pobiera zdefiniowane foldery, które s¹ dostêpne do archiwizacji
+        /// </summary>
+        /// <returns>Lista folderów do archiwizacji</returns>
+        /// <response code="200">Foldery zosta³y pomyœlnie pobrane</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas pobierania folderów</response>
+        [HttpGet("archive/folders")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 500)]
+        public IActionResult GetArchiveFolders()
+        {
+            try
+            {
+                var folders = _configuration.GetSection("Archive:Folders").Get<List<string>>() ?? new List<string>();
+
+                return Ok(new 
+                { 
+                    Success = true, 
+                    Folders = folders 
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas pobierania folderów archiwum");
+                
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Rozpoczyna archiwizacjê dla zdefiniowanych folderów.
+        /// </summary>
+        /// <returns>Status operacji archiwizacji</returns>
+        /// <response code="200">Archiwizacja zosta³a pomyœlnie rozpoczêta</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas uruchamiania archiwizacji</response>
+        [HttpPost("archive/start")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 500)]
+        public IActionResult StartArchivization()
+        {
+            try
+            {
+                // Tutaj dodaj logikê do rozpoczynania archiwizacji, np. ustawienie flagi w bazie danych
+                // lub wywo³anie zewnêtrznego serwisu odpowiedzialnego za archiwizacjê.
+
+                return Ok(new { Success = true, Message = "Archiwizacja zosta³a pomyœlnie rozpoczêta." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas uruchamiania archiwizacji");
+                
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Zatrzymuje bie¿¹cy proces archiwizacji.
+        /// </summary>
+        /// <returns>Status operacji zatrzymywania archiwizacji</returns>
+        /// <response code="200">Archiwizacja zosta³a pomyœlnie zatrzymana</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas zatrzymywania archiwizacji</response>
+        [HttpPost("archive/stop")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 500)]
+        public IActionResult StopArchivization()
+        {
+            try
+            {
+                // Tutaj dodaj logikê do zatrzymywania archiwizacji, np. resetowanie flagi w bazie danych
+                // lub powiadomienie zewnêtrznego serwisu odpowiedzialnego za archiwizacjê.
+
+                return Ok(new { Success = true, Message = "Archiwizacja zosta³a pomyœlnie zatrzymana." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas zatrzymywania archiwizacji");
+                
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Pobiera status bie¿¹cego procesu archiwizacji.
+        /// </summary>
+        /// <returns>Status archiwizacji</returns>
+        /// <response code="200">Status archiwizacji zosta³ pomyœlnie pobrany</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas pobierania statusu archiwizacji</response>
+        [HttpGet("archive/status")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 500)]
+        public IActionResult GetArchivizationStatus()
+        {
+            try
+            {
+                // Tutaj dodaj logikê do pobierania statusu archiwizacji, np. odczytanie flagi z bazy danych
+                // lub zapytanie zewnêtrznego serwisu odpowiedzialnego za archiwizacjê.
+
+                var status = new 
+                {
+                    IsRunning = false, // Przyk³adowa wartoœæ, zmieñ na odpowiedni¹ logikê
+                    StartedAt = (DateTime?)null, // Przyk³adowa wartoœæ, zmieñ na odpowiedni¹ logikê
+                    CompletedAt = (DateTime?)null, // Przyk³adowa wartoœæ, zmieñ na odpowiedni¹ logikê
+                    ErrorMessage = (string)null // Przyk³adowa wartoœæ, zmieñ na odpowiedni¹ logikê
+                };
+
+                return Ok(new 
+                { 
+                    Success = true, 
+                    Status = status 
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas pobierania statusu archiwizacji");
+                
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Pobiera listê zadañ z kolejki dla produktów przetworzonych przez webhook.
+        /// </summary>
+        /// <returns>Lista zadañ z kolejki dla produktów</returns>
+        /// <response code="200">Lista zadañ zosta³a pobrana</response>
+        /// <response code="503">Serwis kolejki nie jest dostêpny</response>
+        [HttpGet("queue/products")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 503)]
+        public async Task<IActionResult> GetProductQueueItems()
+        {
+            try
+            {
+                if (_queueService == null)
+                {
+                    return StatusCode(503, new { 
+                        Success = false, 
+                        Message = "Queue service nie jest dostêpny" 
+                    });
+                }
+
+                var productScope = _configuration.GetValue<int>("Queue:ProductScope", 1001);
+                var webhookProcessingFlag = _configuration.GetValue<int>("Queue:WebhookProcessingFlag", 100);
+
+                // Pobierz zadania z odpowiednim scope (produkty)
+                var queueItems = await _queueService.GetByScopeAsync(productScope);
+                
+                // Filtruj tylko zadania z webhook (po flagach)
+                var webhookItems = queueItems.Where(q => q.Flg == webhookProcessingFlag).ToList();
+
+                var result = webhookItems.Select(item => new
+                {
+                    Id = item.Id,
+                    RowID = item.RowID,
+                    FirmaId = item.FirmaId,
+                    Description = item.Description,
+                    TargetID = item.TargetID,
+                    DateAdd = item.DateAddDateTime,
+                    DateMod = item.DateModDateTime,
+                    RequestPreview = item.Request.Length > 200 ? item.Request.Substring(0, 200) + "..." : item.Request
+                }).ToList();
+
+                return Ok(new
+                {
+                    Success = true,
+                    TotalItems = result.Count,
+                    ProductScope = productScope,
+                    WebhookFlag = webhookProcessingFlag,
+                    QueueItems = result
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas pobierania zadañ z kolejki produktów");
+                await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
+                    "B³¹d podczas pobierania zadañ z kolejki produktów", ex);
+                
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Testuje po³¹czenie z baz¹ danych, aby zweryfikowaæ, ¿e Microsoft.Data.SqlClient dzia³a poprawnie.
+        /// </summary>
+        /// <returns>Status po³¹czenia z baz¹ danych</returns>
+        /// <response code="200">Po³¹czenie z baz¹ danych dzia³a poprawnie</response>
+        /// <response code="500">B³¹d po³¹czenia z baz¹ danych</response>
+        [HttpGet("test/database")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 500)]
+        public async Task<IActionResult> TestDatabaseConnection()
+        {
+            try
+            {
+                var connectionString = _configuration.GetConnectionString("DefaultConnection");
+                
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    return StatusCode(500, new { 
+                        Success = false, 
+                        Message = "Connection string nie jest skonfigurowany" 
+                    });
+                }
+
+                using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+                await connection.OpenAsync();
+
+                // Wykonaj proste zapytanie testowe
+                using var command = new Microsoft.Data.SqlClient.SqlCommand("SELECT 1 as TestResult", connection);
+                var result = await command.ExecuteScalarAsync();
+
+                await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
+                    "Test po³¹czenia z baz¹ danych zakoñczony sukcesem", null, new { 
+                        ConnectionString = connectionString.Replace(_configuration["ConnectionStrings:DefaultConnection"]?.Split("Password=")[1]?.Split(";")[0] ?? "", "***"),
+                        TestResult = result
+                    });
+
+                return Ok(new
+                {
+                    Success = true,
+                    Message = "Po³¹czenie z baz¹ danych dzia³a poprawnie",
+                    TestResult = result,
+                    SqlClientVersion = typeof(Microsoft.Data.SqlClient.SqlConnection).Assembly.GetName().Version?.ToString(),
+                    ConnectionState = connection.State.ToString(),
+                    ServerVersion = connection.ServerVersion,
+                    Database = connection.Database
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas testowania po³¹czenia z baz¹ danych");
+                
+                await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
+                    "B³¹d podczas testowania po³¹czenia z baz¹ danych", ex);
+                
+                return StatusCode(500, new { 
+                    Success = false, 
+                    Message = ex.Message,
+                    ExceptionType = ex.GetType().Name,
+                    InnerException = ex.InnerException?.Message
+                });
             }
         }
     }

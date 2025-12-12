@@ -69,7 +69,7 @@ public class Queue
     public int Flg { get; set; }
 
     /// <summary>
-    /// Opis zadania (maksymalnie 1024 znaki)
+    /// Opis zadania (maksymalnie 1024 znaki), domyœlnie pusty - tam zapisywane s¹ dano winservcice
     /// </summary>
     [Column("Description", TypeName = "varchar(1024)")]
     [Required]
@@ -77,7 +77,7 @@ public class Queue
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// Identyfikator docelowy
+    /// Identyfikator docelowy - jako insert 0, do update identyfikator obiektu docelowego
     /// </summary>
     [Column("TargetID")]
     [Required]

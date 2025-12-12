@@ -383,16 +383,16 @@ namespace Prosepo.Webhooks.Controllers
                     // Pobierz konfiguracjê z appsettings
                     var productScope = _configuration.GetValue<int>("Queue:ProductScope", 16);
                     var defaultFirmaId = _configuration.GetValue<int>("Queue:DefaultFirmaId", 1);
-                    var webhookProcessingFlag = _configuration.GetValue<int>("Queue:WebhookProcessingFlag", 1002);
-
+                    var webhookProcessingFlag = _configuration.GetValue<int>("Queue:WebhookProcessingFlag", 0);
+                    var company = await _queueService.GetByFirmaIdAsync(defaultFirmaId);
                     // Utwórz zadanie kolejki
-                    var queueItem = new Prospeo.DbContext.Models.Queue
+                    var queueItem = new Queue
                     {
                         FirmaId = defaultFirmaId,
                         Scope = productScope,
                         Request = JsonSerializer.Serialize(productData, new JsonSerializerOptions { WriteIndented = true }),
-                        Description = $"Webhook Product Update - SKU: {productData.Sku}, Name: {productData.Name}",
-                        TargetID = productData.Id,
+                        Description = "",
+                        TargetID = 0,
                         Flg = webhookProcessingFlag,
                         DateAddDateTime = DateTime.UtcNow,
                         DateModDateTime = DateTime.UtcNow
@@ -401,8 +401,8 @@ namespace Prosepo.Webhooks.Controllers
                     // Dodaj do kolejki
                     var addedItem = await _queueService.AddAsync(queueItem);
 
-                    _logger.LogInformation("Dodano ProductDto do kolejki - GUID: {Guid}, SKU: {Sku}, QueueID: {QueueId}", 
-                        guid, productData.Sku, addedItem.Id);
+                    _logger.LogInformation("Dodano ProductDto do kolejki - GUID: {Guid}, SKU: {Sku}, QueueID: {QueueId}, Firma: {Firma}", 
+                        guid, productData.Sku, addedItem.Id, company?.FirstOrDefault()?.Firma);
 
                     // Logowanie do pliku
                     await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 

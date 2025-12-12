@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Prosepo.Webhooks", "Prosepo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Prospeo.DbContext", "Prospeo.DbContext\Prospeo.DbContext.csproj", "{C3BEB9C5-EF8E-DB7D-A046-7F9D6E556893}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Olmed", "Olmed", "{4D4E99CC-6CAA-4C31-B641-BD2E273F7964}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,6 +38,10 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{59E3B83E-8045-49F4-9502-26BAA72724E7} = {4D4E99CC-6CAA-4C31-B641-BD2E273F7964}
+		{3C3C1A98-6C34-44D5-95BD-85B12FCF9603} = {4D4E99CC-6CAA-4C31-B641-BD2E273F7964}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {250A073C-DAF5-4020-B465-A39E946CE4EF}

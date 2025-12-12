@@ -92,9 +92,6 @@ namespace Prosepo.Webhooks.Controllers
                 PayloadSize = payload.webhookData?.Length ?? 0
             });
 
-            // Zapisanie surowych danych webhook (zaszyfrowanych)
-            await SaveRawWebhookData(payload, signature);
-
             // Próba deszyfracji i weryfikacji
             if (_helper.TryDecryptAndVerifyWithIvPrefix(payload.guid, payload.webhookType, payload.webhookData, signature, out var json))
             {
@@ -165,61 +162,6 @@ namespace Prosepo.Webhooks.Controllers
                 // Logowanie b³êdu do pliku
                 _ = Task.Run(async () => await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
                     "B³¹d podczas tworzenia katalogu webhook", ex, new { Directory = _webhookDataDirectory }));
-            }
-        }
-
-        /// <summary>
-        /// Zapisuje surowe (zaszyfrowane) dane webhook do pliku.
-        /// </summary>
-        /// <param name="payload">Dane webhook do zapisania</param>
-        /// <param name="signature">Podpis HMAC</param>
-        /// <returns>Task reprezentuj¹cy operacjê asynchroniczn¹</returns>
-        private async Task SaveRawWebhookData(WebhookPayload payload, string signature)
-        {
-            try
-            {
-                var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-                var filename = $"webhook_raw_{payload.webhookType}_{payload.guid}_{timestamp}.json";
-                var filePath = Path.Combine(_webhookDataDirectory, filename);
-
-                // Tworzenie obiektu z pe³nymi danymi webhook
-                var webhookRecord = new
-                {
-                    ReceivedAt = DateTime.UtcNow,
-                    Guid = payload.guid,
-                    WebhookType = payload.webhookType,
-                    Signature = signature,
-                    EncryptedData = payload.webhookData,
-                    ProcessingStatus = "Raw"
-                };
-
-                var jsonContent = JsonSerializer.Serialize(webhookRecord, new JsonSerializerOptions 
-                { 
-                    WriteIndented = true 
-                });
-
-                await System.IO.File.WriteAllTextAsync(filePath, jsonContent);
-                _logger.LogInformation("Zapisano surowe dane webhook do pliku: {FilePath}", filePath);
-
-                // Logowanie do pliku
-                await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
-                    "Zapisano surowe dane webhook", null, new { 
-                        Guid = payload.guid,
-                        FileName = filename,
-                        FilePath = filePath,
-                        DataSize = jsonContent.Length
-                    });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "B³¹d podczas zapisywania surowych danych webhook - GUID: {Guid}", payload.guid);
-                
-                // Logowanie b³êdu do pliku
-                await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
-                    "B³¹d podczas zapisywania surowych danych webhook", ex, new { 
-                        Guid = payload.guid,
-                        WebhookType = payload.webhookType
-                    });
             }
         }
 
@@ -295,9 +237,9 @@ namespace Prosepo.Webhooks.Controllers
                         FirmaId = defaultFirmaId,
                         Scope = productScope,
                         Request = JsonSerializer.Serialize(productData, new JsonSerializerOptions { WriteIndented = true }),
-                        Description = $"Webhook: {webhookType} - SKU: {productData.Sku} - {productData.Name}",
-                        TargetID = productData.Id,
-                        Flg = webhookProcessingFlag,
+                        Description = "",//Always empty for new entries
+                        TargetID = 0, //Always zero for new entries
+                        Flg = webhookProcessingFlag,//Default flag for webhook processing = 0
                         DateAddDateTime = DateTime.UtcNow,
                         DateModDateTime = DateTime.UtcNow
                     };

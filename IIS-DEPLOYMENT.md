@@ -319,3 +319,169 @@ Jeœli masz problemy:
 **Wersja:** 1.0  
 **Data:** 2024-12-12  
 **Autor:** Prospeo Development Team
+
+## CI/CD Integration
+
+### Dostêpne Skrypty CI/CD
+
+Projekt zawiera skrypty do automatyzacji procesów budowania i wdra¿ania:
+
+#### 1. `ci-cd-build-commit.ps1` - Manual Build & Commit
+Manualnie uruchamia build, testy i commituje zmiany.
+
+**U¿ycie:**
+```powershell
+# Podstawowe u¿ycie
+.\ci-cd-build-commit.ps1
+
+# Z niestandardowym commit message
+.\ci-cd-build-commit.ps1 -CommitMessage "Feature: Added new webhook endpoint"
+
+# Bez testów
+.\ci-cd-build-commit.ps1 -SkipTests
+
+# Bez pushowania
+.\ci-cd-build-commit.ps1 -SkipPush
+
+# Debug build
+.\ci-cd-build-commit.ps1 -Configuration Debug
+```
+
+**Co robi:**
+- ? Czyœci poprzednie buildy
+- ? Przywraca pakiety NuGet
+- ? Buduje projekt
+- ? Uruchamia testy (opcjonalne)
+- ? Generuje statystyki projektu
+- ? Commituje zmiany z detalami buildu
+- ? Pushuje do zdalnych repozytoriów
+
+#### 2. `setup-git-hooks.ps1` - Git Hooks Setup
+Instaluje Git hooks do automatycznego sprawdzania kodu.
+
+**U¿ycie:**
+```powershell
+.\setup-git-hooks.ps1
+```
+
+**Zainstalowane hooki:**
+- **pre-commit**: Sprawdza build przed commitem
+- **post-commit**: Loguje commity do pliku
+- **pre-push**: Uruchamia testy przed pushem
+- **post-merge**: Odbudowuje projekt po merge
+
+**Pomijanie hooków:**
+```powershell
+# Pomiñ pre-commit hook
+git commit --no-verify
+
+# Pomiñ pre-push hook
+git push --no-verify
+```
+
+#### 3. `ci-cd-watch.ps1` - Watch Mode
+Automatycznie monitoruje zmiany i buduje projekt.
+
+**U¿ycie:**
+```powershell
+# Podstawowy watch mode
+.\ci-cd-watch.ps1
+
+# Z auto-commitem
+.\ci-cd-watch.ps1 -AutoCommit
+
+# Z auto-commitem i pushem
+.\ci-cd-watch.ps1 -AutoCommit -AutoPush
+
+# Niestandardowy interval (domyœlnie 30s)
+.\ci-cd-watch.ps1 -IntervalSeconds 60
+
+# Debug build
+.\ci-cd-watch.ps1 -Configuration Debug
+```
+
+**Co robi:**
+- ?? Monitoruje zmiany w plikach projektu
+- ?? Automatycznie buduje przy wykryciu zmian
+- ?? Opcjonalnie commituje i pushuje zmiany
+- ?? Loguje wszystkie operacje z timestampami
+
+### Workflow CI/CD
+
+#### Development Workflow
+```powershell
+# 1. Zainstaluj Git hooks (jednorazowo)
+.\setup-git-hooks.ps1
+
+# 2. Pracuj normalnie - hooki dzia³aj¹ automatycznie
+git add .
+git commit -m "My changes"  # pre-commit hook sprawdzi build
+git push                     # pre-push hook uruchomi testy
+
+# 3. Lub u¿yj skryptu do manualnego buildu
+.\ci-cd-build-commit.ps1 -CommitMessage "Feature complete"
+```
+
+#### Continuous Development (Watch Mode)
+```powershell
+# Uruchom watch mode w osobnym terminalu
+.\ci-cd-watch.ps1 -AutoCommit
+
+# Pracuj normalnie - zmiany bêd¹ automatycznie buildowane i commitowane
+```
+
+#### Production Deployment
+```powershell
+# 1. Build i commit zmian
+.\ci-cd-build-commit.ps1 -Configuration Release
+
+# 2. Opublikuj do IIS
+.\publish-to-iis.ps1
+```
+
+### Logi CI/CD
+
+Wszystkie logi s¹ zapisywane w katalogu `build-logs/`:
+
+```
+build-logs/
+??? commits.log           # Historia commitów
+??? .gitignore           # Wykluczone z repo
+```
+
+### Best Practices
+
+1. **Zawsze u¿ywaj Git hooks** - Zapobiegaj¹ commitowaniu niedzia³aj¹cego kodu
+2. **Uruchamiaj testy przed pushem** - pre-push hook to zrobi automatycznie
+3. **U¿ywaj watch mode podczas development** - Oszczêdza czas
+4. **Commituj regularnie** - Ma³e, czêste commity s¹ lepsze ni¿ du¿e
+5. **Sprawdzaj build logs** - Zawieraj¹ cenne informacje o buildzie
+
+### Troubleshooting CI/CD
+
+#### Problem: Hook nie dzia³a
+**Rozwi¹zanie:**
+```powershell
+# Upewnij siê ¿e PowerShell mo¿e wykonywaæ skrypty
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+
+# Przeinstaluj hooki
+.\setup-git-hooks.ps1
+```
+
+#### Problem: Watch mode nie wykrywa zmian
+**Rozwi¹zanie:**
+- Zwiêksz interval: `.\ci-cd-watch.ps1 -IntervalSeconds 60`
+- SprawdŸ czy pliki nie s¹ w katalogu excluded (bin, obj)
+
+#### Problem: Auto-commit tworzy za du¿o commitów
+**Rozwi¹zanie:**
+- U¿ywaj watch mode bez -AutoCommit
+- Commituj manualnie: `.\ci-cd-build-commit.ps1`
+- Zwiêksz interval sprawdzania
+
+---
+
+**Wersja:** 1.1  
+**Data:** 2024-12-12  
+**Autor:** Prospeo Development Team

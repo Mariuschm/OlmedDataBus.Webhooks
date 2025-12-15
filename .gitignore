@@ -361,3 +361,28 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# ================================================================================================
+# ?? SECURITY: Ignoruj wra¿liwe pliki konfiguracyjne
+# ================================================================================================
+
+# User Secrets - przechowywane lokalnie (ju¿ obs³ugiwane przez .vs/config/applicationhost.config)
+# Ale dla pewnoœci:
+**/secrets.json
+
+# Lokalne pliki konfiguracyjne z wra¿liwymi danymi
+**/appsettings.Local.json
+**/appsettings.*.local.json
+
+# Pliki z has³ami i kluczami (na wszelki wypadek)
+# NIE ignoruj secrets-template.json - to tylko szablon
+# **/secrets-template.json
+**/passwords.txt
+**/*.secret
+**/*.secrets
+
+# Backup files mog¹ce zawieraæ wra¿liwe dane
+**/appsettings.json.backup
+**/appsettings.*.backup
+
+# ================================================================================================

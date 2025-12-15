@@ -1,5 +1,29 @@
 ﻿# OlmedDataBus.Webhooks.Client
 
+## ⚠️ WAŻNE: Bezpieczeństwo Konfiguracji
+
+**PRZED pierwszym uruchomieniem** musisz skonfigurować wrażliwe dane (hasła, klucze):
+
+### 🚀 Szybki Start dla Deweloperów
+
+```powershell
+# 1. Sklonuj repozytorium
+git clone https://192.168.88.204/Prospeo/26161_Webbhook
+cd OlmedDataBus
+
+# 2. Skonfiguruj User Secrets (WYMAGANE!)
+.\setup-user-secrets.ps1
+
+# 3. Uruchom aplikację
+cd Prosepo.Webhooks
+dotnet run
+```
+
+📖 **Szczegółowa dokumentacja bezpieczeństwa:** [SECURITY-CONFIGURATION.md](SECURITY-CONFIGURATION.md)  
+📖 **Przewodnik Quick Start:** [QUICK-START.md](QUICK-START.md)
+
+---
+
 ## Opis
 
 `OlmedDataBus.Webhooks.Client` to biblioteka .NET umożliwiająca bezpieczną obsługę webhooków pochodzących z szyny danych OLMED. Umożliwia ona:

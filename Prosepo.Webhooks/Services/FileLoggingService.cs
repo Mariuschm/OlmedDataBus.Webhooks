@@ -6,11 +6,13 @@ namespace Prosepo.Webhooks.Services
     /// <summary>
     /// Serwis do logowania aplikacji do plików z rotacj¹ dzienn¹.
     /// Zapewnia thread-safe zapisywanie logów z kategoryzacj¹ i formatowaniem.
+    /// Wspiera tryb debug (wszystkie poziomy) i produkcyjny (tylko b³êdy).
     /// </summary>
     public class FileLoggingService
     {
         private readonly string _logsDirectory;
         private readonly IConfiguration _configuration;
+        private readonly bool _isDebug;
         private static readonly object _lock = new object();
         private static readonly ConcurrentDictionary<string, string> _fileCache = new();
 
@@ -22,7 +24,27 @@ namespace Prosepo.Webhooks.Services
         {
             _configuration = configuration;
             _logsDirectory = _configuration["Logging:File:Directory"] ?? Path.Combine(Directory.GetCurrentDirectory(), "Logs");
+            _isDebug = _configuration.GetValue<bool>("Logging:File:IsDebug", false);
             EnsureLogsDirectoryExists();
+        }
+
+        /// <summary>
+        /// Sprawdza czy log powinien byæ zapisany na podstawie poziomu i trybu debug.
+        /// W trybie debug logowane s¹ wszystkie poziomy.
+        /// W trybie produkcyjnym logowane s¹ tylko Error i Critical.
+        /// </summary>
+        /// <param name="level">Poziom logowania</param>
+        /// <returns>True jeœli log powinien byæ zapisany</returns>
+        private bool ShouldLog(LogLevel level)
+        {
+            // W trybie debug logujemy wszystkie poziomy
+            if (_isDebug)
+            {
+                return true;
+            }
+
+            // W trybie produkcyjnym logujemy tylko Error i Critical
+            return level >= LogLevel.Error;
         }
 
         /// <summary>
@@ -35,6 +57,12 @@ namespace Prosepo.Webhooks.Services
         /// <param name="additionalData">Dodatkowe dane do za³¹czenia</param>
         public async Task LogAsync(string category, LogLevel level, string message, Exception? exception = null, object? additionalData = null)
         {
+            // SprawdŸ czy log powinien byæ zapisany
+            if (!ShouldLog(level))
+            {
+                return;
+            }
+
             try
             {
                 var logEntry = CreateLogEntry(category, level, message, exception, additionalData);
@@ -68,6 +96,12 @@ namespace Prosepo.Webhooks.Services
         /// <param name="data">Dane strukturalne do zapisania jako JSON</param>
         public async Task LogStructuredAsync(string category, LogLevel level, string message, object data)
         {
+            // SprawdŸ czy log powinien byæ zapisany
+            if (!ShouldLog(level))
+            {
+                return;
+            }
+
             try
             {
                 var logEntry = new

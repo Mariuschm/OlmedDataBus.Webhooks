@@ -4,10 +4,10 @@
   "configurations": [
     {
       "id": "olmed-sync-orders",
-      "name": "Synchronizacja zamówieñ Olmed",
-      "description": "Pobieranie zamówieñ z API Olmed co 2 godziny - synchronizacja zamówieñ z dynamicznym zakresem dat (2 dni)",
+      "name": "Synchronizacja zamÃ³wieÃ± Olmed",
+      "description": "Pobieranie zamÃ³wieÃ± z API Olmed co 10 minut - synchronizacja zamÃ³wieÃ± z dynamicznym zakresem dat (2 dni)",
       "isActive": true,
-      "intervalSeconds": 7200,
+      "intervalSeconds": 600,
       "method": "POST",
       "url": "https://draft-csm-connector.grupaolmed.pl/erp-api/orders/get-orders",
       "useOlmedAuth": true,

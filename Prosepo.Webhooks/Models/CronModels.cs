@@ -386,4 +386,122 @@ namespace Prosepo.Webhooks.Models
     }
 
     #endregion
+
+    #region Order Sync Configuration Models - Modele konfiguracji synchronizacji zamówieñ
+
+    /// <summary>
+    /// Konfiguracja synchronizacji zamówieñ dla ró¿nych marketplace'ów.
+    /// Definiuje parametry ¿¹dañ HTTP i harmonogramu dla zadañ cyklicznych pobierania zamówieñ.
+    /// Automatycznie zarz¹dza zakresem dat (dateFrom/dateTo) z dynamicznym przesuwaniem o 2 dni.
+    /// </summary>
+    public class OrderSyncConfiguration
+    {
+        /// <summary>
+        /// Unikalny identyfikator konfiguracji synchronizacji.
+        /// U¿ywany jako JobId w schedulerze zadañ cyklicznych.
+        /// </summary>
+        /// <example>olmed-sync-orders</example>
+        public string Id { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Nazwa opisowa konfiguracji synchronizacji.
+        /// </summary>
+        /// <example>Synchronizacja zamówieñ Olmed</example>
+        public string Name { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Czy konfiguracja jest aktywna.
+        /// Nieaktywne konfiguracje nie bêd¹ tworzone jako zadania cykliczne.
+        /// </summary>
+        public bool IsActive { get; set; } = true;
+
+        /// <summary>
+        /// Interwa³ wykonywania zadania w sekundach.
+        /// </summary>
+        /// <example>7200</example>
+        public int IntervalSeconds { get; set; } = 7200;
+
+        /// <summary>
+        /// Metoda HTTP ¿¹dania.
+        /// </summary>
+        /// <example>POST</example>
+        public string Method { get; set; } = "POST";
+
+        /// <summary>
+        /// URL endpointu API do synchronizacji zamówieñ.
+        /// </summary>
+        /// <example>https://draft-csm-connector.grupaolmed.pl/erp-api/orders/get-orders</example>
+        public string Url { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Czy u¿ywaæ automatycznej autoryzacji Olmed.
+        /// </summary>
+        public bool UseOlmedAuth { get; set; } = true;
+
+        /// <summary>
+        /// Nag³ówki HTTP ¿¹dania.
+        /// </summary>
+        public Dictionary<string, string> Headers { get; set; } = new();
+
+        /// <summary>
+        /// Marketplace dla którego wykonywana jest synchronizacja.
+        /// U¿ywane w body ¿¹dania.
+        /// </summary>
+        /// <example>APTEKA_OLMED</example>
+        public string Marketplace { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Liczba dni do cofniêcia daty pocz¹tkowej (dateFrom).
+        /// Domyœlnie 2 dni wstecz od daty koñcowej.
+        /// </summary>
+        /// <example>2</example>
+        public int DateRangeDays { get; set; } = 2;
+
+        /// <summary>
+        /// Czy u¿ywaæ dzisiejszej daty jako dateTo.
+        /// Jeœli true, dateTo bêdzie zawsze ustawione na DateTime.Now.Date (dzisiejsza data).
+        /// Jeœli false, dateTo bêdzie ustawione na wczorajsz¹ datê (DateTime.Now.Date.AddDays(-1)).
+        /// </summary>
+        public bool UseCurrentDateAsEndDate { get; set; } = true;
+
+        /// <summary>
+        /// Format daty u¿ywany w ¿¹daniu API.
+        /// </summary>
+        /// <example>yyyy-MM-dd</example>
+        public string DateFormat { get; set; } = "yyyy-MM-dd";
+
+        /// <summary>
+        /// Dodatkowe parametry specyficzne dla danego marketplace.
+        /// </summary>
+        public Dictionary<string, object> AdditionalParameters { get; set; } = new();
+
+        /// <summary>
+        /// Opis konfiguracji synchronizacji.
+        /// </summary>
+        public string Description { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Kolekcja konfiguracji synchronizacji zamówieñ.
+    /// U¿ywana do deserializacji z pliku JSON.
+    /// </summary>
+    public class OrderSyncConfigurationCollection
+    {
+        /// <summary>
+        /// Lista konfiguracji synchronizacji zamówieñ.
+        /// </summary>
+        public List<OrderSyncConfiguration> Configurations { get; set; } = new();
+
+        /// <summary>
+        /// Wersja konfiguracji - u¿yteczna do migracji.
+        /// </summary>
+        public string Version { get; set; } = "1.0";
+
+        /// <summary>
+        /// Czas ostatniej modyfikacji konfiguracji.
+        /// </summary>
+        public DateTime LastModified { get; set; } = DateTime.UtcNow;
+    }
+
+    #endregion
 }

@@ -42,6 +42,9 @@ builder.Services.AddHostedService<CronSchedulerService>(provider => provider.Get
 // Rejestracja ProductSyncConfigurationService
 builder.Services.AddScoped<ProductSyncConfigurationService>();
 
+// Rejestracja OrderSyncConfigurationService
+builder.Services.AddScoped<OrderSyncConfigurationService>();
+
 // Rejestracja GracefulShutdownService jako Hosted Service
 builder.Services.AddHostedService<GracefulShutdownService>();
 

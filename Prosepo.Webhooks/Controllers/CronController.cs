@@ -1327,5 +1327,144 @@ namespace Prosepo.Webhooks.Controllers
         }
 
         #endregion
+
+        #region Order Sync Jobs Management - Zarz¹dzanie zadaniami synchronizacji zamówieñ
+
+        /// <summary>
+        /// Prze³adowuje zadania synchronizacji zamówieñ bezpoœrednio z CronSchedulerService.
+        /// Usuwa istniej¹ce zadania zamówieñ i ³aduje je ponownie z aktualnej konfiguracji.
+        /// </summary>
+        /// <returns>Potwierdzenie prze³adowania zadañ</returns>
+        /// <response code="200">Zadania zosta³y prze³adowane</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas prze³adowania zadañ</response>
+        [HttpPost("order-sync/reload-jobs")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 500)]
+        public async Task<IActionResult> ReloadOrderSyncJobs()
+        {
+            try
+            {
+                await _schedulerService.ReloadOrderSyncJobs();
+
+                var activeOrderJobs = _schedulerService.GetAllJobs()
+                    .Where(j => j.IsActive && (j.Id.Contains("-order") || j.Id.Contains("orders")))
+                    .ToList();
+
+                return Ok(new
+                {
+                    Success = true,
+                    Message = $"Prze³adowano zadania synchronizacji zamówieñ z CronSchedulerService",
+                    ActiveOrderSyncJobs = activeOrderJobs.Count,
+                    Jobs = activeOrderJobs.Select(j => new
+                    {
+                        j.Id,
+                        j.NextExecution,
+                        j.ExecutionCount,
+                        Url = j.Schedule.Request.Url,
+                        Method = j.Schedule.Request.Method,
+                        IntervalSeconds = j.Schedule.IntervalSeconds,
+                        BodyPreview = j.Schedule.Request.Body?.Length > 100 
+                            ? j.Schedule.Request.Body[..100] + "..." 
+                            : j.Schedule.Request.Body
+                    }).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas prze³adowania zadañ synchronizacji zamówieñ z CronSchedulerService");
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// £aduje zadania synchronizacji zamówieñ z aktualnej konfiguracji do schedulera.
+        /// </summary>
+        /// <returns>Potwierdzenie za³adowania zadañ</returns>
+        /// <response code="200">Zadania zosta³y za³adowane</response>
+        /// <response code="500">Wyst¹pi³ b³¹d podczas ³adowania zadañ</response>
+        [HttpPost("order-sync/load-jobs")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 500)]
+        public async Task<IActionResult> LoadOrderSyncJobs()
+        {
+            try
+            {
+                await _schedulerService.LoadOrderSyncJobs();
+
+                var activeOrderJobs = _schedulerService.GetAllJobs()
+                    .Where(j => j.IsActive && (j.Id.Contains("-order") || j.Id.Contains("orders")))
+                    .ToList();
+
+                return Ok(new
+                {
+                    Success = true,
+                    Message = $"Za³adowano {activeOrderJobs.Count} zadañ synchronizacji zamówieñ",
+                    LoadedJobs = activeOrderJobs.Select(j => j.Id).ToList(),
+                    Jobs = activeOrderJobs.Select(j => new
+                    {
+                        j.Id,
+                        j.NextExecution,
+                        j.LastExecution,
+                        j.ExecutionCount,
+                        j.IsActive,
+                        Url = j.Schedule.Request.Url,
+                        Method = j.Schedule.Request.Method,
+                        IntervalSeconds = j.Schedule.IntervalSeconds
+                    }).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas ³adowania zadañ synchronizacji zamówieñ");
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Pobiera status wszystkich zadañ synchronizacji zamówieñ.
+        /// </summary>
+        /// <returns>Status zadañ synchronizacji zamówieñ</returns>
+        /// <response code="200">Status zosta³ pobrany</response>
+        [HttpGet("order-sync/status")]
+        [ProducesResponseType(typeof(object), 200)]
+        public IActionResult GetOrderSyncStatus()
+        {
+            var orderJobs = _schedulerService.GetAllJobs()
+                .Where(j => j.Id.Contains("-order") || j.Id.Contains("orders"))
+                .ToList();
+
+            var activeJobs = orderJobs.Where(j => j.IsActive).ToList();
+            var nextJob = activeJobs
+                .Where(j => j.NextExecution > DateTime.UtcNow)
+                .OrderBy(j => j.NextExecution)
+                .FirstOrDefault();
+
+            return Ok(new
+            {
+                Success = true,
+                TotalOrderJobs = orderJobs.Count,
+                ActiveOrderJobs = activeJobs.Count,
+                InactiveOrderJobs = orderJobs.Count - activeJobs.Count,
+                TotalExecutions = orderJobs.Sum(j => j.ExecutionCount),
+                NextExecution = nextJob != null ? new
+                {
+                    JobId = nextJob.Id,
+                    ScheduledFor = nextJob.NextExecution,
+                    TimeRemaining = (nextJob.NextExecution - DateTime.UtcNow).TotalSeconds
+                } : null,
+                Jobs = orderJobs.Select(j => new
+                {
+                    j.Id,
+                    j.IsActive,
+                    j.NextExecution,
+                    j.LastExecution,
+                    j.ExecutionCount,
+                    Url = j.Schedule.Request.Url,
+                    IntervalSeconds = j.Schedule.IntervalSeconds
+                }).ToList()
+            });
+        }
+
+        #endregion
     }
 }

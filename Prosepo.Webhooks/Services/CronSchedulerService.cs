@@ -645,6 +645,7 @@ namespace Prosepo.Webhooks.Services
                 });
 
                 _ = Task.Run(async () => await LoadProductSyncJobs());
+                _ = Task.Run(async () => await LoadOrderSyncJobs());
 
                 var loadedJobs = new[] { "olmed-auth-refresh" };
                 _logger.LogInformation("Za³adowano {Count} zadañ cyklicznych: {Jobs}", 
@@ -785,21 +786,26 @@ namespace Prosepo.Webhooks.Services
             }
         }
 
+        /// <summary>
+        /// Prze³adowuje zadania synchronizacji produktów.
+        /// Usuwa istniej¹ce zadania produktów i ³aduje je ponownie z konfiguracji.
+        /// </summary>
         public async Task ReloadProductSyncJobs()
         {
             try
             {
                 _logger.LogInformation("Ponowne ³adowanie zadañ synchronizacji produktów...");
 
-                var existingJobs = _scheduledJobs.Keys
-                    .Where(jobId => jobId.StartsWith("olmed-") || jobId.Contains("-sync-") || jobId.EndsWith("-sync"))
+                // Identyfikacja zadañ produktów do usuniêcia
+                var existingProductJobs = _scheduledJobs.Keys
+                    .Where(jobId => jobId.Contains("-product") || jobId.Contains("products") || jobId.EndsWith("-sync-products") || (jobId.StartsWith("olmed-") && jobId.Contains("-sync-")))
                     .ToList();
 
-                foreach (var jobId in existingJobs)
+                foreach (var jobId in existingProductJobs)
                 {
                     if (RemoveJob(jobId))
                     {
-                        _logger.LogInformation("Usuniêto istniej¹ce zadanie synchronizacji: {JobId}", jobId);
+                        _logger.LogInformation("Usuniêto istniej¹ce zadanie synchronizacji produktów: {JobId}", jobId);
                     }
                 }
 
@@ -808,8 +814,8 @@ namespace Prosepo.Webhooks.Services
                 await LogSchedulerEvent("PRODUCT_SYNC_JOBS_RELOADED", 
                     "Zadania synchronizacji produktów zosta³y prze³adowane", 
                     new { 
-                        RemovedJobs = existingJobs,
-                        RemovedCount = existingJobs.Count,
+                        RemovedJobs = existingProductJobs,
+                        RemovedCount = existingProductJobs.Count,
                         ReloadedAt = DateTime.UtcNow 
                     });
             }
@@ -819,6 +825,187 @@ namespace Prosepo.Webhooks.Services
                 
                 await LogSchedulerEvent("PRODUCT_SYNC_JOBS_RELOAD_ERROR", 
                     "B³¹d podczas ponownego ³adowania zadañ synchronizacji produktów", 
+                    new { 
+                        Error = ex.Message,
+                        StackTrace = ex.StackTrace
+                    });
+                
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// £aduje zadania synchronizacji zamówieñ z konfiguracji JSON.
+        /// Wykorzystuje OrderSyncConfigurationService do pobrania aktywnych konfiguracji.
+        /// </summary>
+        public async Task LoadOrderSyncJobs()
+        {
+            try
+            {
+                _logger.LogInformation("£adowanie zadañ synchronizacji zamówieñ z konfiguracji JSON...");
+
+                using var scope = _serviceProvider.CreateScope();
+                var orderSyncConfigService = scope.ServiceProvider.GetService<OrderSyncConfigurationService>();
+
+                if (orderSyncConfigService == null)
+                {
+                    _logger.LogWarning("OrderSyncConfigurationService nie jest zarejestrowany.");
+                    return;
+                }
+
+                var configurations = await orderSyncConfigService.GetActiveConfigurationsAsync();
+                var loadedJobs = new List<string>();
+
+                if (!configurations.Any())
+                {
+                    _logger.LogInformation("Brak aktywnych konfiguracji synchronizacji zamówieñ do za³adowania");
+                    return;
+                }
+
+                _logger.LogInformation("Znaleziono {Count} aktywnych konfiguracji synchronizacji zamówieñ", configurations.Count);
+
+                foreach (var config in configurations)
+                {
+                    try
+                    {
+                        _logger.LogInformation("£adowanie zadania synchronizacji zamówieñ: {JobId} - {Name}", config.Id, config.Name);
+
+                        // Generowanie body z dynamicznymi datami
+                        var body = orderSyncConfigService.GenerateRequestBody(config);
+
+                        var schedule = new CronJobSchedule
+                        {
+                            Type = ScheduleType.Interval,
+                            IntervalSeconds = config.IntervalSeconds,
+                            Request = new CronJobRequest
+                            {
+                                Method = config.Method,
+                                Url = config.Url,
+                                UseOlmedAuth = config.UseOlmedAuth,
+                                Headers = config.Headers ?? new Dictionary<string, string>(),
+                                Body = body // Dynamicznie wygenerowane body z datami
+                            }
+                        };
+
+                        AddOrUpdateJob(config.Id, schedule);
+                        loadedJobs.Add(config.Id);
+
+                        _logger.LogInformation("Za³adowano zadanie synchronizacji zamówieñ: {JobId} - {Name} (interwa³: {Interval}s, URL: {Url})", 
+                            config.Id, config.Name, config.IntervalSeconds, config.Url);
+
+                        await LogJobEvent(config.Id, "ORDER_SYNC_JOB_LOADED", 
+                            $"Za³adowano zadanie synchronizacji zamówieñ: {config.Name}", 
+                            new {
+                                Name = config.Name,
+                                Description = config.Description,
+                                Marketplace = config.Marketplace,
+                                IntervalSeconds = config.IntervalSeconds,
+                                Method = config.Method,
+                                Url = config.Url,
+                                UseOlmedAuth = config.UseOlmedAuth,
+                                HeadersCount = config.Headers?.Count ?? 0,
+                                HasBody = !string.IsNullOrEmpty(body),
+                                BodyPreview = body.Length > 100 ? body[..100] + "..." : body,
+                                DateRangeDays = config.DateRangeDays,
+                                UseCurrentDateAsEndDate = config.UseCurrentDateAsEndDate,
+                                DateFormat = config.DateFormat,
+                                AdditionalParametersCount = config.AdditionalParameters?.Count ?? 0
+                            });
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "B³¹d podczas ³adowania zadania synchronizacji zamówieñ: {JobId} - {Name}", config.Id, config.Name);
+                        
+                        await LogJobEvent(config.Id, "ORDER_SYNC_JOB_LOAD_ERROR", 
+                            $"B³¹d podczas ³adowania zadania synchronizacji zamówieñ: {config.Name}", 
+                            new { 
+                                Error = ex.Message,
+                                ConfigurationId = config.Id,
+                                ConfigurationName = config.Name
+                            });
+                    }
+                }
+
+                if (loadedJobs.Any())
+                {
+                    _logger.LogInformation("Pomyœlnie za³adowano {LoadedCount} z {TotalCount} zadañ synchronizacji zamówieñ: {Jobs}", 
+                        loadedJobs.Count, configurations.Count, string.Join(", ", loadedJobs));
+
+                    await LogSchedulerEvent("ORDER_SYNC_JOBS_LOADED", 
+                        $"Za³adowano {loadedJobs.Count} zadañ synchronizacji zamówieñ z konfiguracji JSON", 
+                        new { 
+                            LoadedJobs = loadedJobs,
+                            TotalConfigurations = configurations.Count,
+                            LoadedCount = loadedJobs.Count,
+                            ConfigurationFile = _configuration["OrderSync:ConfigurationFile"] ?? "Configuration/order-sync-config.json",
+                            LoadedAt = DateTime.UtcNow
+                        });
+                }
+                else
+                {
+                    _logger.LogWarning("Nie uda³o siê za³adowaæ ¿adnego zadania synchronizacji zamówieñ");
+                    
+                    await LogSchedulerEvent("ORDER_SYNC_JOBS_LOAD_WARNING", 
+                        "Nie uda³o siê za³adowaæ ¿adnego zadania synchronizacji zamówieñ", 
+                        new { 
+                            TotalConfigurations = configurations.Count,
+                            ConfigurationsDetails = configurations.Select(c => new { c.Id, c.Name, c.IsActive }).ToList()
+                        });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas ³adowania zadañ synchronizacji zamówieñ z konfiguracji");
+                
+                await LogSchedulerEvent("ORDER_SYNC_JOBS_LOAD_CRITICAL_ERROR", 
+                    "Krytyczny b³¹d podczas ³adowania zadañ synchronizacji zamówieñ", 
+                    new { 
+                        Error = ex.Message,
+                        StackTrace = ex.StackTrace,
+                        ConfigurationFile = _configuration["OrderSync:ConfigurationFile"] ?? "Configuration/order-sync-config.json"
+                    });
+            }
+        }
+
+        /// <summary>
+        /// Prze³adowuje zadania synchronizacji zamówieñ.
+        /// Usuwa istniej¹ce zadania zamówieñ i ³aduje je ponownie z konfiguracji.
+        /// </summary>
+        public async Task ReloadOrderSyncJobs()
+        {
+            try
+            {
+                _logger.LogInformation("Ponowne ³adowanie zadañ synchronizacji zamówieñ...");
+
+                // Identyfikacja zadañ zamówieñ do usuniêcia
+                var existingOrderJobs = _scheduledJobs.Keys
+                    .Where(jobId => jobId.Contains("-order") || jobId.Contains("orders") || jobId.EndsWith("-sync-orders"))
+                    .ToList();
+
+                foreach (var jobId in existingOrderJobs)
+                {
+                    if (RemoveJob(jobId))
+                    {
+                        _logger.LogInformation("Usuniêto istniej¹ce zadanie synchronizacji zamówieñ: {JobId}", jobId);
+                    }
+                }
+
+                await LoadOrderSyncJobs();
+
+                await LogSchedulerEvent("ORDER_SYNC_JOBS_RELOADED", 
+                    "Zadania synchronizacji zamówieñ zosta³y prze³adowane", 
+                    new { 
+                        RemovedJobs = existingOrderJobs,
+                        RemovedCount = existingOrderJobs.Count,
+                        ReloadedAt = DateTime.UtcNow 
+                    });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas ponownego ³adowania zadañ synchronizacji zamówieñ");
+                
+                await LogSchedulerEvent("ORDER_SYNC_JOBS_RELOAD_ERROR", 
+                    "B³¹d podczas ponownego ³adowania zadañ synchronizacji zamówieñ", 
                     new { 
                         Error = ex.Message,
                         StackTrace = ex.StackTrace

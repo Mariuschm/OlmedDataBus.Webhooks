@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using System.Globalization;
+using System;
 
 namespace Prospeo.DTOs
 {
@@ -45,6 +46,20 @@ namespace Prospeo.DTOs
         }
     }
 
+    /// <summary>
+    /// Attribute to mark properties for special processing or grouping
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+    public class SpecialPropertyAttribute : Attribute
+    {
+        public string Category { get; set; }
+
+        public SpecialPropertyAttribute(string category = "Default")
+        {
+            Category = category;
+        }
+    }
+
     public class ProductDto
     {
         [JsonPropertyName("marketplace")]
@@ -78,21 +93,27 @@ namespace Prospeo.DTOs
         public bool IsSeriesNumberRequired { get; set; }
 
         [JsonPropertyName("isQualityControlRequired")]
+        [SpecialProperty("ProductFlags")]
         public bool IsQualityControlRequired { get; set; }
 
         [JsonPropertyName("isRefrigeratedStorage")]
+        [SpecialProperty("ProductFlags")]
         public bool IsRefrigeratedStorage { get; set; }
 
         [JsonPropertyName("isRefrigeratedTransport")]
+        [SpecialProperty("ProductFlags")]
         public bool IsRefrigeratedTransport { get; set; }
 
         [JsonPropertyName("isFragile")]
+        [SpecialProperty("ProductFlags")]
         public bool IsFragile { get; set; }
 
         [JsonPropertyName("isDiscounted")]
+        [SpecialProperty("ProductFlags")]
         public bool IsDiscounted { get; set; }
 
         [JsonPropertyName("isNotForReception")]
+        [SpecialProperty("ProductFlags")]
         public bool IsNotForReception { get; set; }
 
         [JsonPropertyName("imageUrl")]

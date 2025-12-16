@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Prosepo.Webhooks.DTO;
+using Prospeo.DTOs;
 using Prosepo.Webhooks.Services;
 using Prospeo.DbContext.Services;
 using Prospeo.DbContext.Models;

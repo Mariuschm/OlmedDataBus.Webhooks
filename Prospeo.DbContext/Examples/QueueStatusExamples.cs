@@ -20,7 +20,7 @@ public enum QueueItemStatus
 }
 
 /// <summary>
-/// Przyk³ady u¿ycia modelu QueueStatus i serwisu QueueStatusService
+/// Przyk³ady u¿ycia modelu QueueStatusEnum i serwisu QueueStatusService
 /// </summary>
 public static class QueueStatusExamples
 {
@@ -210,7 +210,7 @@ public static class QueueStatusExamples
 }
 
 /// <summary>
-/// Przyk³ad mapowania miêdzy modelami a DTOs dla QueueStatus
+/// Przyk³ad mapowania miêdzy modelami a DTOs dla QueueStatusEnum
 /// </summary>
 public static class QueueStatusMappingExamples
 {

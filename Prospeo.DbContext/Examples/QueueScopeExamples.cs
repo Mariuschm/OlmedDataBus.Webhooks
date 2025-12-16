@@ -1,31 +1,31 @@
-using Prospeo.DbContext.Data;
+ï»¿using Prospeo.DbContext.Data;
 using Prospeo.DbContext.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Prospeo.DbContext.Examples;
 
 /// <summary>
-/// Przyk³ady u¿ycia QueueScope i QueueStatus enum
+/// PrzykÅ‚ady uÅ¼ycia QueueScope i QueueStatusEnum enum
 /// </summary>
 public static class QueueScopeExamples
 {
     /// <summary>
-    /// Przyk³ad 1: Filtrowanie kolejki po typie Scope i statusie
+    /// PrzykÅ‚ad 1: Filtrowanie kolejki po typie Scope i statusie
     /// </summary>
     public static async Task Example1_FilterByScopeAndStatus()
     {
         var connectionString = "Server=localhost;Database=ProspeoDb;Trusted_Connection=true;";
         using var context = new ProspeoDataContext(connectionString);
 
-        // Pobierz wszystkie zadania towarowe oczekuj¹ce na przetworzenie
+        // Pobierz wszystkie zadania towarowe oczekujÄ…ce na przetworzenie
         var pendingTowarTasks = await context.Queues
             .Where(q => q.Scope == (int)QueueScope.Towar 
-                     && q.Flg == (int)QueueStatus.Pending)
+                     && q.Flg == (int)QueueStatusEnum.Pending)
             .ToListAsync();
 
-        Console.WriteLine($"Znaleziono {pendingTowarTasks.Count} zadañ typu Towar oczekuj¹cych na przetworzenie");
+        Console.WriteLine($"Znaleziono {pendingTowarTasks.Count} zadaÅ„ typu Towar oczekujÄ…cych na przetworzenie");
 
-        // Wyœwietl szczegó³y
+        // WyÅ›wietl szczegÃ³Å‚y
         foreach (var task in pendingTowarTasks.Take(10))
         {
             Console.WriteLine($"ID: {task.Id}, Scope: {task.ScopeEnum}, Status: {task.FlgEnum}, TargetID: {task.TargetID}");
@@ -33,26 +33,26 @@ public static class QueueScopeExamples
     }
 
     /// <summary>
-    /// Przyk³ad 2: Filtrowanie po firmie, typie i statusie
+    /// PrzykÅ‚ad 2: Filtrowanie po firmie, typie i statusie
     /// </summary>
     public static async Task Example2_FilterByCompanyScopeAndStatus(int companyId)
     {
         var connectionString = "Server=localhost;Database=ProspeoDb;Trusted_Connection=true;";
         using var context = new ProspeoDataContext(connectionString);
 
-        // Pobierz zadania towarowe oczekuj¹ce dla konkretnej firmy
+        // Pobierz zadania towarowe oczekujÄ…ce dla konkretnej firmy
         var towarTasksForCompany = await context.Queues
             .Where(q => q.FirmaId == companyId 
                      && q.Scope == (int)QueueScope.Towar
-                     && q.Flg == (int)QueueStatus.Pending)
+                     && q.Flg == (int)QueueStatusEnum.Pending)
             .OrderBy(q => q.DateAdd)
             .ToListAsync();
 
-        Console.WriteLine($"Znaleziono {towarTasksForCompany.Count} zadañ oczekuj¹cych dla firmy {companyId}");
+        Console.WriteLine($"Znaleziono {towarTasksForCompany.Count} zadaÅ„ oczekujÄ…cych dla firmy {companyId}");
     }
 
     /// <summary>
-    /// Przyk³ad 3: Tworzenie nowego zadania z enumami
+    /// PrzykÅ‚ad 3: Tworzenie nowego zadania z enumami
     /// </summary>
     public static async Task Example3_CreateQueueItemWithEnums(int companyId, int targetId, string request)
     {
@@ -65,7 +65,7 @@ public static class QueueScopeExamples
         {
             FirmaId = companyId,
             ScopeEnum = QueueScope.Towar,
-            FlgEnum = QueueStatus.Pending,
+            FlgEnum = QueueStatusEnum.Pending,
             Request = request,
             DateAdd = (int)now,
             DateMod = (int)now,
@@ -80,7 +80,7 @@ public static class QueueScopeExamples
     }
 
     /// <summary>
-    /// Przyk³ad 4: Przetwarzanie zadania ze zmian¹ statusu
+    /// PrzykÅ‚ad 4: Przetwarzanie zadania ze zmianÄ… statusu
     /// </summary>
     public static async Task Example4_ProcessTaskWithStatusChange(int queueId)
     {
@@ -90,51 +90,51 @@ public static class QueueScopeExamples
         var queueItem = await context.Queues.FindAsync(queueId);
         if (queueItem == null)
         {
-            Console.WriteLine($"Zadanie o ID {queueId} nie zosta³o znalezione");
+            Console.WriteLine($"Zadanie o ID {queueId} nie zostaÅ‚o znalezione");
             return;
         }
 
         try
         {
             // Ustaw status "w trakcie"
-            queueItem.FlgEnum = QueueStatus.Processing;
+            queueItem.FlgEnum = QueueStatusEnum.Processing;
             queueItem.DateMod = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             await context.SaveChangesAsync();
 
-            Console.WriteLine($"Rozpoczêto przetwarzanie zadania {queueId}");
+            Console.WriteLine($"RozpoczÄ™to przetwarzanie zadania {queueId}");
 
             // Symulacja przetwarzania
             await Task.Delay(1000);
 
-            // Ustaw status "zakoñczone"
-            queueItem.FlgEnum = QueueStatus.Completed;
-            queueItem.Description = "Zadanie zakoñczone pomyœlnie";
+            // Ustaw status "zakoÅ„czone"
+            queueItem.FlgEnum = QueueStatusEnum.Completed;
+            queueItem.Description = "Zadanie zakoÅ„czone pomyÅ›lnie";
             queueItem.DateMod = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             await context.SaveChangesAsync();
 
-            Console.WriteLine($"Zadanie {queueId} zakoñczone pomyœlnie");
+            Console.WriteLine($"Zadanie {queueId} zakoÅ„czone pomyÅ›lnie");
         }
         catch (Exception ex)
         {
-            // Ustaw status "b³¹d"
-            queueItem.FlgEnum = QueueStatus.Error;
-            queueItem.Description = $"B³¹d: {ex.Message}";
+            // Ustaw status "bÅ‚Ä…d"
+            queueItem.FlgEnum = QueueStatusEnum.Error;
+            queueItem.Description = $"BÅ‚Ä…d: {ex.Message}";
             queueItem.DateMod = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             await context.SaveChangesAsync();
 
-            Console.WriteLine($"Zadanie {queueId} zakoñczone z b³êdem: {ex.Message}");
+            Console.WriteLine($"Zadanie {queueId} zakoÅ„czone z bÅ‚Ä™dem: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// Przyk³ad 5: Grupowanie zadañ wed³ug statusu
+    /// PrzykÅ‚ad 5: Grupowanie zadaÅ„ wedÅ‚ug statusu
     /// </summary>
     public static async Task Example5_GroupByStatus()
     {
         var connectionString = "Server=localhost;Database=ProspeoDb;Trusted_Connection=true;";
         using var context = new ProspeoDataContext(connectionString);
 
-        // Grupowanie zadañ wed³ug statusu
+        // Grupowanie zadaÅ„ wedÅ‚ug statusu
         var groupedTasks = await context.Queues
             .GroupBy(q => q.Flg)
             .Select(g => new
@@ -146,11 +146,11 @@ public static class QueueScopeExamples
             })
             .ToListAsync();
 
-        Console.WriteLine("Statystyki zadañ wed³ug statusu:");
+        Console.WriteLine("Statystyki zadaÅ„ wedÅ‚ug statusu:");
         foreach (var group in groupedTasks)
         {
-            var statusName = Enum.IsDefined(typeof(QueueStatus), group.Status)
-                ? ((QueueStatus)group.Status).ToString()
+            var statusName = Enum.IsDefined(typeof(QueueStatusEnum), group.Status)
+                ? ((QueueStatusEnum)group.Status).ToString()
                 : $"Unknown ({group.Status})";
 
             Console.WriteLine($"Status: {statusName}, Liczba: {group.Count}");
@@ -158,7 +158,7 @@ public static class QueueScopeExamples
     }
 
     /// <summary>
-    /// Przyk³ad 6: Pobieranie zadañ do przetworzenia (jak w Worker)
+    /// PrzykÅ‚ad 6: Pobieranie zadaÅ„ do przetworzenia (jak w Worker)
     /// </summary>
     public static async Task<List<Prospeo.DbContext.Models.Queue>> Example6_GetTasksForProcessing(
         int companyId, 
@@ -167,18 +167,18 @@ public static class QueueScopeExamples
         var connectionString = "Server=localhost;Database=ProspeoDb;Trusted_Connection=true;";
         using var context = new ProspeoDataContext(connectionString);
 
-        // Pobierz zadania towarowe oczekuj¹ce na przetworzenie
+        // Pobierz zadania towarowe oczekujÄ…ce na przetworzenie
         return await context.Queues
             .Where(q => q.FirmaId == companyId 
                      && q.Scope == (int)QueueScope.Towar
-                     && q.Flg == (int)QueueStatus.Pending)
+                     && q.Flg == (int)QueueStatusEnum.Pending)
             .OrderBy(q => q.DateAdd)
             .Take(count)
             .ToListAsync();
     }
 
     /// <summary>
-    /// Przyk³ad 7: Ponowne przetwarzanie zadañ z b³êdami
+    /// PrzykÅ‚ad 7: Ponowne przetwarzanie zadaÅ„ z bÅ‚Ä™dami
     /// </summary>
     public static async Task Example7_RetryErrorTasks(int companyId, int olderThanHours = 1)
     {
@@ -187,29 +187,29 @@ public static class QueueScopeExamples
 
         var cutoffTime = DateTimeOffset.UtcNow.AddHours(-olderThanHours).ToUnixTimeSeconds();
 
-        // ZnajdŸ zadania z b³êdami starsze ni¿ okreœlony czas
+        // ZnajdÅº zadania z bÅ‚Ä™dami starsze niÅ¼ okreÅ›lony czas
         var errorTasks = await context.Queues
             .Where(q => q.FirmaId == companyId
-                     && q.FlgEnum == QueueStatus.Error
+                     && q.FlgEnum == QueueStatusEnum.Error
                      && q.DateMod < cutoffTime)
             .ToListAsync();
 
-        Console.WriteLine($"Znaleziono {errorTasks.Count} zadañ z b³êdami do ponowienia");
+        Console.WriteLine($"Znaleziono {errorTasks.Count} zadaÅ„ z bÅ‚Ä™dami do ponowienia");
 
         foreach (var task in errorTasks)
         {
             // Reset statusu do Pending
-            task.FlgEnum = QueueStatus.Pending;
-            task.Description = $"Ponowienie próby (poprzedni b³¹d: {task.Description})";
+            task.FlgEnum = QueueStatusEnum.Pending;
+            task.Description = $"Ponowienie prÃ³by (poprzedni bÅ‚Ä…d: {task.Description})";
             task.DateMod = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         }
 
         await context.SaveChangesAsync();
-        Console.WriteLine($"Zresetowano {errorTasks.Count} zadañ do statusu Pending");
+        Console.WriteLine($"Zresetowano {errorTasks.Count} zadaÅ„ do statusu Pending");
     }
 
     /// <summary>
-    /// Przyk³ad 8: Raport statusów zadañ
+    /// PrzykÅ‚ad 8: Raport statusÃ³w zadaÅ„
     /// </summary>
     public static async Task Example8_StatusReport(int companyId)
     {
@@ -227,8 +227,8 @@ public static class QueueScopeExamples
             })
             .ToListAsync();
 
-        Console.WriteLine($"Raport zadañ dla firmy {companyId}:");
-        Console.WriteLine("?????????????????????????????????????");
+        Console.WriteLine($"Raport zadaÅ„ dla firmy {companyId}:");
+        Console.WriteLine("â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€");
 
         foreach (var item in report)
         {
@@ -236,11 +236,11 @@ public static class QueueScopeExamples
                 ? ((QueueScope)item.Scope).ToString()
                 : $"Unknown({item.Scope})";
 
-            var statusName = Enum.IsDefined(typeof(QueueStatus), item.Status)
-                ? ((QueueStatus)item.Status).ToString()
+            var statusName = Enum.IsDefined(typeof(QueueStatusEnum), item.Status)
+                ? ((QueueStatusEnum)item.Status).ToString()
                 : $"Unknown({item.Status})";
 
-            Console.WriteLine($"{scopeName,-15} | {statusName,-12} | {item.Count,5} zadañ");
+            Console.WriteLine($"{scopeName,-15} | {statusName,-12} | {item.Count,5} zadaÅ„");
         }
     }
 }

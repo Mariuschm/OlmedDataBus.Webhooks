@@ -73,7 +73,7 @@ public class Queue
     public int DateMod { get; set; }
 
     /// <summary>
-    /// Flagi statusu zadania (0=oczekuje, 1=w trakcie, 2=zakoñczone, 3=b³¹d)
+    /// Flagi statusu zadania (0=oczekuje, 5=w trakcie, 1=zakoñczone, -1=b³¹d)
     /// </summary>
     [Column("Flg")]
     [Required]
@@ -83,9 +83,9 @@ public class Queue
     /// Status zadania jako enum
     /// </summary>
     [NotMapped]
-    public Enums.QueueStatus FlgEnum
+    public Enums.QueueStatusEnum FlgEnum
     {
-        get => (Enums.QueueStatus)Flg;
+        get => (Enums.QueueStatusEnum)Flg;
         set => Flg = (int)value;
     }
 

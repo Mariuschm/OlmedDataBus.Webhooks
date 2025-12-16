@@ -117,7 +117,7 @@ public class ProspeoDataContext : Microsoft.EntityFrameworkCore.DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // Konfiguracja dla tabeli QueueStatus
+        // Konfiguracja dla tabeli QueueStatusEnum
         modelBuilder.Entity<QueueStatus>(entity =>
         {
             // Nazwa tabeli i schemat

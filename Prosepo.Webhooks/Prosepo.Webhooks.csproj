@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\OlmedDataBus.Webhooks.Client\OlmedDataBus.Webhooks.Client.csproj" />
     <ProjectReference Include="..\Prospeo.DbContext\Prospeo.DbContext.csproj" />
+    <ProjectReference Include="..\Prospeo.DTOs\Prospeo.DTOs.csproj" />
   </ItemGroup>
 
   <ItemGroup>

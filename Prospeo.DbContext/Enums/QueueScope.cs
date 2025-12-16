@@ -8,13 +8,15 @@ public enum QueueScope
     /// <summary>
     /// Operacja na towarze
     /// </summary>
-    Towar = 16
+    Towar = 16,
+    Kontrahent = 32,
+    Zamowienie = 960
 }
 
 /// <summary>
 /// Enum reprezentuj¹cy status zadania w kolejce (Queue.Flg)
 /// </summary>
-public enum QueueStatus
+public enum QueueStatusEnum
 {
     /// <summary>
     /// Zadanie oczekuje na przetworzenie
@@ -24,15 +26,15 @@ public enum QueueStatus
     /// <summary>
     /// Zadanie w trakcie przetwarzania
     /// </summary>
-    Processing = 1,
+    Processing = 5,
     
     /// <summary>
     /// Zadanie zakoñczone pomyœlnie
     /// </summary>
-    Completed = 2,
+    Completed = 1,
     
     /// <summary>
     /// Zadanie zakoñczone z b³êdem
     /// </summary>
-    Error = 3
+    Error = -1
 }

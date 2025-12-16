@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Prospeo.DbContext.Enums;
 
 namespace Prospeo.DbContext.Models;
 
@@ -34,11 +35,21 @@ public class Queue
     public int FirmaId { get; set; }
 
     /// <summary>
-    /// Zakres operacji
+    /// Zakres operacji (typ enum QueueScope)
     /// </summary>
     [Column("Scope")]
     [Required]
     public int Scope { get; set; }
+
+    /// <summary>
+    /// Zakres operacji jako enum
+    /// </summary>
+    [NotMapped]
+    public QueueScope ScopeEnum
+    {
+        get => (QueueScope)Scope;
+        set => Scope = (int)value;
+    }
 
     /// <summary>
     /// ¯¹danie w formacie JSON/XML (bez ograniczenia d³ugoœci)
@@ -62,11 +73,21 @@ public class Queue
     public int DateMod { get; set; }
 
     /// <summary>
-    /// Flagi statusu/opcji
+    /// Flagi statusu zadania (0=oczekuje, 1=w trakcie, 2=zakoñczone, 3=b³¹d)
     /// </summary>
     [Column("Flg")]
     [Required]
     public int Flg { get; set; }
+
+    /// <summary>
+    /// Status zadania jako enum
+    /// </summary>
+    [NotMapped]
+    public Enums.QueueStatus FlgEnum
+    {
+        get => (Enums.QueueStatus)Flg;
+        set => Flg = (int)value;
+    }
 
     /// <summary>
     /// Opis zadania (maksymalnie 1024 znaki), domyœlnie pusty - tam zapisywane s¹ dano winservcice

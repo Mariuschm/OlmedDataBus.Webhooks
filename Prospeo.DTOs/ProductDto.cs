@@ -19,6 +19,12 @@ namespace Prospeo.DTOs
                 return default;
             }
 
+            // Check for invalid date format "0000-00-00 00:00:00" and return current DateTime
+            if (dateString == "0000-00-00 00:00:00")
+            {
+                return DateTime.Now;
+            }
+
             if (DateTime.TryParseExact(dateString, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var result))
             {
                 return result;

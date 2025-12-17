@@ -120,6 +120,7 @@ namespace Prospeo.DTOs
         public string ImageUrl { get; set; } = string.Empty;
 
         [JsonPropertyName("parentArticleSKU")]
+        [SpecialProperty("ProductFlags")]
         public string ParentArticleSKU { get; set; } = string.Empty;
 
         [JsonPropertyName("isActive")]
@@ -129,12 +130,14 @@ namespace Prospeo.DTOs
         public ProductDimensionsDto Dimensions { get; set; } = new();
 
         [JsonPropertyName("packageQuantity")]
+        [SpecialProperty("ProductFlags")]
         public decimal PackageQuantity { get; set; }
 
         [JsonPropertyName("weight")]
         public decimal Weight { get; set; }
 
         [JsonPropertyName("producer")]
+        [SpecialProperty("ProductFlags")]
         public string Producer { get; set; } = string.Empty;
 
         [JsonPropertyName("lastModifyDateTime")]
@@ -145,13 +148,18 @@ namespace Prospeo.DTOs
         public string VatRate { get; set; } = string.Empty;
 
         [JsonPropertyName("supervisor")]
+        [SpecialProperty("ProductFlags")]
         public string Supervisor { get; set; } = string.Empty;
 
         [JsonPropertyName("type")]
+        [SpecialProperty("ProductFlags")]
         public string? Type { get; set; }
 
         [JsonPropertyName("isPackage")]
+        [SpecialProperty("ProductFlags")]
         public bool IsPackage { get; set; }
+
+        public int XlItemId { get; set; }
     }
     
     public class ProductDimensionsDto

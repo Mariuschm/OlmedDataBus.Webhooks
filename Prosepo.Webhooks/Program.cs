@@ -18,6 +18,9 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 // Add services to the container.
 builder.Services.AddHttpClient();
 
+// Rejestracja OlmedApiService
+builder.Services.AddScoped<OlmedApiService>();
+
 // Dodaj Prospeo DbContext i serwisy (z domyślnym connection stringiem)
 // Sprawdź czy connection string istnieje w konfiguracji
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");

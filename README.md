@@ -14,13 +14,17 @@ cd OlmedDataBus
 # 2. Skonfiguruj User Secrets (WYMAGANE!)
 .\setup-user-secrets.ps1
 
-# 3. Uruchom aplikację
+# 3. Skonfiguruj API Keys dla kontrolerów Order/Invoice (opcjonalne)
+# Uruchom skrypt SQL: setup-api-keys.sql
+
+# 4. Uruchom aplikację
 cd Prosepo.Webhooks
 dotnet run
 ```
 
 📖 **Szczegółowa dokumentacja bezpieczeństwa:** [SECURITY-CONFIGURATION.md](SECURITY-CONFIGURATION.md)  
-📖 **Przewodnik Quick Start:** [QUICK-START.md](QUICK-START.md)
+📖 **Przewodnik Quick Start:** [QUICK-START.md](QUICK-START.md)  
+📖 **Dokumentacja API Order/Invoice:** [README_ORDER_INVOICE_API.md](Prosepo.Webhooks/README_ORDER_INVOICE_API.md)
 
 ---
 
@@ -30,8 +34,37 @@ dotnet run
 - weryfikację podpisu HMAC SHA256 przesyłanych danych,
 - odszyfrowanie zaszyfrowanego payloadu (AES-256-CBC),
 - prostą integrację z aplikacjami .NET (np. ASP.NET Core, Windows Service, itp.).
+- **NOWE:** kontrolery Order i Invoice z autentykacją API Key do komunikacji z systemem Olmed
 
 Dzięki tej bibliotece partnerzy OLMED mogą w łatwy sposób odbierać, weryfikować i odszyfrowywać dane przesyłane przez webhooki.
+
+---
+
+## 🆕 Nowe funkcjonalności - Kontrolery Order i Invoice
+
+### OrderController
+- **Endpoint:** `/api/order/update-status`
+- **Metoda:** GET
+- **Autoryzacja:** API Key (nagłówek X-API-Key)
+- **Parametry:**
+  - `orderId` (string) - identyfikator zamówienia
+  - `orderStatus` (int) - nowy status zamówienia
+- **Opis:** Aktualizuje status zamówienia w systemie Olmed
+
+### InvoiceController
+- **Endpoint:** `/api/invoice/sent`
+- **Metoda:** POST
+- **Autoryzacja:** API Key (nagłówek X-API-Key)
+- **Body:** JSON z danymi faktury (invoiceNumber, orderId, sentDate, recipientEmail, additionalData)
+- **Opis:** Zgłasza wysłanie faktury do systemu Olmed
+
+### Testowanie
+```powershell
+# Przetestuj nowe endpointy:
+.\test-order-invoice-api.ps1
+```
+
+📖 **Pełna dokumentacja:** [README_ORDER_INVOICE_API.md](Prosepo.Webhooks/README_ORDER_INVOICE_API.md)
 
 ---
 

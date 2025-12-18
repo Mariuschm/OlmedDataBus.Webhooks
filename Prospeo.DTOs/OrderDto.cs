@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace Prospeo.DTOs
 {
+
     public class OrderDto
     {
         [JsonPropertyName("marketplace")]
@@ -77,5 +78,6 @@ namespace Prospeo.DTOs
 
         [JsonPropertyName("marketplaceAdditionalData")]
         public OrderMarketplaceAdditionalDataDto MarketplaceAdditionalData { get; set; } = new();
+        public int XlOrderId { get; set; }
     }
 }

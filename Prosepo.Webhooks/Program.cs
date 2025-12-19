@@ -1,7 +1,15 @@
 ﻿using Prosepo.Webhooks.Services;
+using Prosepo.Webhooks.Tools;
 using Prospeo.DbContext.Extensions;
 using Prospeo.DbContext.Data;
 using Microsoft.EntityFrameworkCore;
+using Prosepo.Webhooks.Helpers;
+// Sprawdź czy uruchomiono narzędzie szyfrowania
+if (args.Length > 0 && args[0] == "encrypt-tool")
+{
+    EncryptionTool.Run(args);
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +31,8 @@ builder.Services.AddScoped<OlmedApiService>();
 
 // Dodaj Prospeo DbContext i serwisy (z domyślnym connection stringiem)
 // Sprawdź czy connection string istnieje w konfiguracji
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var encryptionKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44=";
+var connectionString = StringEncryptionHelper.DecryptIfEncrypted(builder.Configuration.GetConnectionString("DefaultConnection"), encryptionKey);
 if (!string.IsNullOrEmpty(connectionString))
 {
     builder.Services.AddProspeoServices(builder.Configuration);
@@ -64,45 +73,37 @@ if (!string.IsNullOrEmpty(connectionString))
     try
     {
         using var scope = app.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<ProspeoDataContext>();
-        
+        var context = scope.ServiceProvider.GetRequiredService<ProspeoDataContext>();    
         // Sprawdź czy można połączyć się z bazą danych
         await context.Database.CanConnectAsync();
-        
         // Opcjonalnie: sprawdź czy tabele istnieją (bez tworzenia ich)
         var firmsExist = await context.Database.ExecuteSqlRawAsync("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ProRWS' AND TABLE_NAME = 'Firmy'") >= 0;
-        
-        Console.WriteLine($"✅ Połączenie z bazą danych SQL Server (192.168.88.210/PROSWB) zostało pomyślnie nawiązane!");
-        Console.WriteLine($"📊 Connection String: Server=192.168.88.210;Database=PROSWB;User Id=sa;Password=***;...");
-        
-        // Logowanie połączenia
+
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("Database connection established successfully to {Server}/{Database}", 
-            "192.168.88.210", "PROSWB");
+        logger.LogInformation("Database connection established successfully to {Database}", "PROSWB");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"❌ Błąd połączenia z bazą danych: {ex.Message}");
-        Console.WriteLine($"🔗 Connection String: {connectionString.Replace("Password=zaq12wsX", "Password=***")}");
-        
+        Console.WriteLine($"Błąd połączenia z bazą danych: {ex.Message}");
         // Aplikacja może kontynuować działanie, ale funkcjonalność Queue będzie ograniczona
         var logger = app.Services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Failed to establish database connection to {Server}/{Database}", 
-            "192.168.88.210", "PROSWB");
+        logger.LogError(ex, "Failed to establish database connection to {Database}", "PROSWB");
     }
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
+//if (app.Environment.IsDevelopment())
+//{
+
     app.UseSwagger();
     app.UseSwaggerUI();
-}
+//}
 
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
 app.MapControllers();
+Console.WriteLine("🚀 Prosepo Webhooks is running...");
 
 app.Run();

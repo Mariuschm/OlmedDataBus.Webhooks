@@ -104,6 +104,5 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
-Console.WriteLine("🚀 Prosepo Webhooks is running...");
 
 app.Run();

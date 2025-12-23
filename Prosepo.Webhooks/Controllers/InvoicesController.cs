@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Prosepo.Webhooks.Attributes;
 using Prosepo.Webhooks.Services;
+using Prospeo.DbContext.Services;
+using Prospeo.DbContext.Models;
 using Prospeo.DTOs;
 using System.Text.Json;
+using Prospeo.DbContext.Enums;
 
 namespace Prosepo.Webhooks.Controllers
 {
@@ -17,13 +20,19 @@ namespace Prosepo.Webhooks.Controllers
     {
         private readonly OlmedApiService _olmedService;
         private readonly ILogger<InvoiceController> _logger;
+        private readonly IQueueService? _queueService;
+        private readonly IFirmyService? _firmyService;
+
 
         public InvoiceController(
             OlmedApiService olmedService,
-            ILogger<InvoiceController> logger)
+            ILogger<InvoiceController> logger,
+             IQueueService? queueService = null, IFirmyService? firmyService = null)
         {
             _olmedService = olmedService;
             _logger = logger;
+            _queueService = queueService;
+            _firmyService = firmyService;
         }
 
         /// <summary>
@@ -207,6 +216,77 @@ namespace Prosepo.Webhooks.Controllers
                     success = false,
                     error = "B³¹d serwera",
                     message = "Wyst¹pi³ nieoczekiwany b³¹d podczas pobierania listy faktur"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Wewnêtrzny endpoint do zg³aszania wys³ania faktury zakupu
+        /// Dodaje fakturê do kolejki przetwarzania dla okreœlonej firmy
+        /// </summary>
+        /// <param name="request">Model faktury zakupowej zawieraj¹cy dane do przetworzenia</param>
+        /// <param name="companyId">Identyfikator firmy, dla której dodawana jest faktura do kolejki</param>
+        /// <returns>Wynik operacji dodania faktury do kolejki</returns>
+        /// <remarks>
+        /// Endpoint wewnêtrzny przeznaczony do komunikacji miêdzy serwisami.
+        /// Faktura jest dodawana do kolejki w formacie JSON z nastêpuj¹cymi parametrami:
+        /// - Scope: okreœlany na podstawie typu dokumentu (request.Typ)
+        /// - Request: serializowany model faktury
+        /// - Description: pusty dla nowych wpisów
+        /// - TargetID: 0 dla nowych wpisów
+        /// - Flg: 0 (domyœlna wartoœæ dla przetwarzania webhook)
+        /// 
+        /// Przyk³ad u¿ycia:
+        /// POST /api/invoice/sent-interal?companyId=1
+        /// Content-Type: application/json
+        /// X-API-Key: {your-api-key}
+        /// 
+        /// Body:
+        /// {
+        ///   "dokumentObcy": "FZ/2024/001",
+        ///   "termin": 45000,
+        ///   "typ": 1,
+        ///   "akronim": "DOSTAWCA01"
+        /// }
+        /// </remarks>
+        [HttpPost("sent-interal")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> SentInternal([FromBody] PurchaseInvoiceModelDTO request, [FromQuery] int companyId)
+        {
+
+            try
+            {
+                var scope = (QueueScope)request.Typ;
+                var queueItem = new Queue
+                {
+                    FirmaId = companyId,
+                    Scope = (int)scope,
+                    Request = JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = true }),
+                    Description = "",//Always empty for new entries
+                    TargetID = 0, //Always zero for new entries
+                    Flg = 0,//Default flag for webhook processing = 0
+                    DateAddDateTime = DateTime.UtcNow,
+                    DateModDateTime = DateTime.UtcNow
+                };
+                await _queueService.AddAsync(queueItem);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Faktura zosta³a dodana do kolejki przetwarzania"
+                });
+            } 
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Wyj¹tek podczas dodawania faktury do kolejki: FirmaId={FirmaId}, InvoiceNumber={InvoiceNumber}",
+                    companyId, request.DokumentObcy);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "B³¹d serwera",
+                    message = "Wyst¹pi³ nieoczekiwany b³¹d podczas dodawania faktury do kolejki"
                 });
             }
         }

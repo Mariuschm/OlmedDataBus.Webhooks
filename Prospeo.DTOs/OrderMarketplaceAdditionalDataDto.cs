@@ -8,12 +8,15 @@ namespace Prospeo.DTOs
     public class OrderMarketplaceAdditionalDataDto
     {
         [JsonPropertyName("allegroOrderId")]
+        [SpecialProperty("Atrybut")]
         public string AllegroOrderId { get; set; } = string.Empty;
 
         [JsonPropertyName("paymentProvider")]
+        [SpecialProperty("Atrybut")]
         public string PaymentProvider { get; set; } = string.Empty;
 
         [JsonPropertyName("paymentId")]
+        [SpecialProperty("Atrybut")]
         public string PaymentId { get; set; } = string.Empty;
     }
 }

@@ -78,6 +78,7 @@ namespace Prospeo.DTOs
         public string Ean { get; set; } = string.Empty;
 
         [JsonPropertyName("bloz7")]
+        [SpecialProperty("ProductFlags")]
         public string Bloz7 { get; set; } = string.Empty;
 
         [JsonPropertyName("group")]
@@ -159,17 +160,20 @@ namespace Prospeo.DTOs
         [SpecialProperty("ProductFlags")]
         public bool IsPackage { get; set; }
 
+        [JsonPropertyName("IsFree")]
+        [SpecialProperty("ProductFlags")]
+        public bool IsFree { get; set; }
         public int XlItemId { get; set; }
     }
-    
+
     public class ProductDimensionsDto
     {
         [JsonPropertyName("x")]
         public decimal X { get; set; }
-        
+
         [JsonPropertyName("y")]
         public decimal Y { get; set; }
-        
+
         [JsonPropertyName("z")]
         public decimal Z { get; set; }
     }

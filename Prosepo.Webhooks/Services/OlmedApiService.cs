@@ -46,7 +46,7 @@ namespace Prosepo.Webhooks.Services
 
             try
             {
-                var loginUrl = $"{_baseUrl}/erp-api/authentication/login";
+                var loginUrl = $"{_baseUrl}/erp-api/auth/login";
                 var loginData = new
                 {
                     username = _username,

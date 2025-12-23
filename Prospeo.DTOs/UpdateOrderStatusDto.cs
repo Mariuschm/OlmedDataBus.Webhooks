@@ -7,11 +7,32 @@ namespace Prospeo.DTOs
     /// </summary>
     public class UpdateOrderStatusRequest
     {
-        [JsonPropertyName("orderId")]
-        public string OrderId { get; set; } = string.Empty;
+        [JsonPropertyName("marketplace")]
+        public string Marketplace { get; set; } = string.Empty;
 
-        [JsonPropertyName("orderStatus")]
-        public int OrderStatus { get; set; }
+        [JsonPropertyName("orderNumber")]
+        public string OrderNumber { get; set; } = string.Empty;
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = string.Empty;
+
+        [JsonPropertyName("note")]
+        public string? Note { get; set; }
+
+        [JsonPropertyName("trackingNumber")]
+        public string? TrackingNumber { get; set; }
+    }
+
+
+    public enum OrderStatus
+    {
+        Infolinia=-1,
+        Oczekuje_na_przyjecie =0,
+        Przyjeto_do_realizacji =1,
+        Gotowe_do_wysylki = 5,
+        Anulowano = 8,
+        Przekazane_do_kuriera = 9,
+        Zgloszono_braki = 100
     }
 
     /// <summary>
@@ -25,10 +46,10 @@ namespace Prospeo.DTOs
         [JsonPropertyName("message")]
         public string Message { get; set; } = string.Empty;
 
-        [JsonPropertyName("orderId")]
-        public string OrderId { get; set; } = string.Empty;
+        [JsonPropertyName("orderNumber")]
+        public string OrderNumber { get; set; } = string.Empty;
 
         [JsonPropertyName("newStatus")]
-        public int NewStatus { get; set; }
+        public string NewStatus { get; set; } = string.Empty;
     }
 }

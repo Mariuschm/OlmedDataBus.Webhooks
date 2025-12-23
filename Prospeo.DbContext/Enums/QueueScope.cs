@@ -10,7 +10,9 @@ public enum QueueScope
     /// </summary>
     Towar = 16,
     Kontrahent = 32,
-    Zamowienie = 960
+    Zamowienie = 960,
+    FakutraZakupu = 1521,
+    Korekta = 1529
 }
 
 /// <summary>

@@ -1,6 +1,7 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Order
 {
     /// <summary>
     /// Represents the goods receiver information for an order.
@@ -24,7 +25,7 @@ namespace Prospeo.DTOs
     /// and compliance with trade regulations.
     /// </para>
     /// </remarks>
-    public class OrderReceiverDto
+    public class OrderReceiverDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the tax identification number (NIP) of the receiver.

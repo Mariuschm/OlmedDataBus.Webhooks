@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Core
 {
     /// <summary>
     /// Abstract base class for all Data Transfer Objects (DTOs) in the Prospeo system.
@@ -50,6 +53,61 @@ namespace Prospeo.DTOs
         }
 
         #endregion
+
+        /// <summary>
+        /// Custom JSON converter for DateTime that handles the format "yyyy-MM-dd HH:mm:ss"
+        /// </summary>
+        public class CustomDateTimeConverter : JsonConverter<DateTime>
+        {
+            private const string DateFormat = "yyyy-MM-dd HH:mm:ss";
+
+            public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                var dateString = reader.GetString();
+                if (string.IsNullOrEmpty(dateString))
+                {
+                    return default;
+                }
+
+                // Check for invalid date format "0000-00-00 00:00:00" and return current DateTime
+                if (dateString == "0000-00-00 00:00:00")
+                {
+                    return DateTime.Now;
+                }
+
+                if (DateTime.TryParseExact(dateString, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var result))
+                {
+                    return result;
+                }
+
+                // Fallback to standard parsing if custom format fails
+                if (DateTime.TryParse(dateString, out var fallbackResult))
+                {
+                    return fallbackResult;
+                }
+
+                throw new JsonException($"Unable to parse '{dateString}' as DateTime. Expected format: {DateFormat}");
+            }
+
+            public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+            {
+                writer.WriteStringValue(value.ToString(DateFormat, CultureInfo.InvariantCulture));
+            }
+        }
+
+        /// <summary>
+        /// Attribute to mark properties for special processing or grouping
+        /// </summary>
+        [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+        public class SpecialPropertyAttribute : Attribute
+        {
+            public string Category { get; set; }
+
+            public SpecialPropertyAttribute(string category = "Default")
+            {
+                Category = category;
+            }
+        }
 
         #region METHODS
 

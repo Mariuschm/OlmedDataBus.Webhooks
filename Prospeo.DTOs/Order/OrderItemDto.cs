@@ -1,6 +1,7 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Order
 {
     /// <summary>
     /// Represents a single line item within an order.
@@ -20,7 +21,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class OrderItemDto
+    public class OrderItemDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the unique identifier for this order item.

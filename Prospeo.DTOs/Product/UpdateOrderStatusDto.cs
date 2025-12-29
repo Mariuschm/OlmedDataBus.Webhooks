@@ -1,6 +1,7 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Product
 {
     /// <summary>
     /// Represents a request to update the status of an order in the system.
@@ -20,7 +21,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class UpdateOrderStatusRequest
+    public class UpdateOrderStatusRequest : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the marketplace identifier.
@@ -202,7 +203,7 @@ namespace Prospeo.DTOs
     /// This response confirms whether the status update was successful and provides
     /// the updated status information for verification.
     /// </remarks>
-    public class UpdateOrderStatusResponse
+    public class UpdateOrderStatusResponse : DTOModelBase
     {
         /// <summary>
         /// Gets or sets a value indicating whether the status update was successful.

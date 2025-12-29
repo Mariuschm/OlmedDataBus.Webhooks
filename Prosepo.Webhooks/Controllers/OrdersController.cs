@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Prosepo.Webhooks.Attributes;
 using Prosepo.Webhooks.Services;
-using Prospeo.DTOs;
+using Prospeo.DTOs.Order;
+using Prospeo.DTOs.Product;
 using System.Text.Json;
 
 namespace Prosepo.Webhooks.Controllers

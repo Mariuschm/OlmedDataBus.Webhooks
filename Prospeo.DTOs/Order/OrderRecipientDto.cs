@@ -1,6 +1,7 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Order
 {
     /// <summary>
     /// Represents the delivery recipient information for an order.
@@ -20,7 +21,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class OrderRecipientDto
+    public class OrderRecipientDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the full name of the delivery recipient.

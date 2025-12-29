@@ -1,6 +1,7 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Order
 {
     /// <summary>
     /// Represents additional marketplace-specific data associated with an order.
@@ -19,7 +20,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class OrderMarketplaceAdditionalDataDto
+    public class OrderMarketplaceAdditionalDataDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the Allegro order identifier.

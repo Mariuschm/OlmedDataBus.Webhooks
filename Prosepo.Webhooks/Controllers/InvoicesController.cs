@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using Prosepo.Webhooks.Attributes;
 using Prosepo.Webhooks.Services;
 using Prospeo.DbContext.Models;
-using Prospeo.DTOs;
 using System.Text.Json;
 using Prospeo.DbContext.Enums;
 using Prospeo.DbContext.Interfaces;
+using Prospeo.DTOs.Invoice;
 
 namespace Prosepo.Webhooks.Controllers
 {

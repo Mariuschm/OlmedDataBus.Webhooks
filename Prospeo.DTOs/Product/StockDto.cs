@@ -1,6 +1,8 @@
+using Prospeo.DTOs.Core;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Product
 {
     /// <summary>
     /// Represents current stock level information for products in a marketplace.
@@ -21,7 +23,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class StockDto
+    public class StockDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the marketplace identifier.
@@ -89,7 +91,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class StockItemDto
+    public class StockItemDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the available stock quantity.

@@ -1,6 +1,7 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Product
 {
     /// <summary>
     /// Represents the response to a stock update operation.
@@ -21,7 +22,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class StockUpdateResponse
+    public class StockUpdateResponse : DTOModelBase
     {
         /// <summary>
         /// Gets or sets a value indicating whether the stock update operation was successful.

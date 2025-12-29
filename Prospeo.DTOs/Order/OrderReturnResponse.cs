@@ -1,6 +1,7 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Order
 {
     /// <summary>
     /// Represents the response after processing an order return request.
@@ -22,7 +23,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class OrderReturnResponse
+    public class OrderReturnResponse : DTOModelBase
     {
         /// <summary>
         /// Gets or sets a value indicating whether the return operation was successful.

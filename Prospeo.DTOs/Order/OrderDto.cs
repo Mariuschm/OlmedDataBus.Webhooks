@@ -1,11 +1,12 @@
+using Prospeo.DTOs.Core;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Order
 {
 
-    public class OrderDto
+    public class OrderDto : DTOModelBase
     {
         [JsonPropertyName("marketplace")]
         public string Marketplace { get; set; } = string.Empty;

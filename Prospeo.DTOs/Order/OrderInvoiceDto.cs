@@ -1,8 +1,9 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Order
 {
-    /// <summary>
+    /// <summary>       
     /// Represents the invoice/billing information for an order.
     /// Contains the complete billing address and tax identification details for invoice generation.
     /// </summary>
@@ -21,7 +22,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class OrderInvoiceDto
+    public class OrderInvoiceDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the tax identification number (NIP) for the invoice recipient.

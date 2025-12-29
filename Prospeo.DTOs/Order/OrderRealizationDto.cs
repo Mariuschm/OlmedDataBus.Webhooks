@@ -1,6 +1,7 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Order
 {
     /// <summary>
     /// Represents a request to upload order realization/fulfillment results to the system.
@@ -21,7 +22,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class UploadOrderRealizationRequest
+    public class UploadOrderRealizationRequest : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the marketplace identifier.
@@ -75,7 +76,7 @@ namespace Prospeo.DTOs
     /// <item><description>Regulatory compliance and product recalls</description></item>
     /// </list>
     /// </remarks>
-    public class OrderRealizationItemDto
+    public class OrderRealizationItemDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the Stock Keeping Unit (SKU) of the fulfilled product.
@@ -153,7 +154,7 @@ namespace Prospeo.DTOs
     /// This response confirms that the order realization data was received and processed,
     /// and provides summary information for verification and logging purposes.
     /// </remarks>
-    public class UploadOrderRealizationResponse
+    public class UploadOrderRealizationResponse : DTOModelBase
     {
         /// <summary>
         /// Gets or sets a value indicating whether the operation was successful.

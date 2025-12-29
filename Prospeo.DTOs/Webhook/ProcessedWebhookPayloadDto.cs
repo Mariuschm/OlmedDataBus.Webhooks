@@ -1,11 +1,15 @@
+using Prospeo.DTOs.Core;
+using Prospeo.DTOs.Order;
+using Prospeo.DTOs.Product;
+using System;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Webhook
 {
     /// <summary>
     /// Represents a processed webhook payload with decrypted data.
     /// </summary>
-    public class ProcessedWebhookPayloadDto
+    public class ProcessedWebhookPayloadDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the timestamp when the webhook was processed.
@@ -43,7 +47,7 @@ namespace Prospeo.DTOs
     /// Represents the decrypted data section of a processed webhook.
     /// Contains variable content based on the webhook type.
     /// </summary>
-    public class DecryptedDataDto
+    public class DecryptedDataDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the account name.

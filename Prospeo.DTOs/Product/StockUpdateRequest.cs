@@ -1,6 +1,9 @@
+using Prospeo.DTOs.Core;
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Product
 {
     /// <summary>
     /// Represents a request to update stock levels for one or more products in a marketplace.
@@ -25,7 +28,7 @@ namespace Prospeo.DTOs
     /// to minimize API calls and improve performance.
     /// </para>
     /// </remarks>
-    public class StockUpdateRequest
+    public class StockUpdateRequest : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the marketplace identifier for which stock is being updated.
@@ -136,7 +139,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class StockUpdateItemDto
+    public class StockUpdateItemDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the new stock quantity available for sale.

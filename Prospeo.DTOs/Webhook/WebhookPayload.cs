@@ -1,9 +1,11 @@
-namespace Prospeo.DTOs
+using Prospeo.DTOs.Core;
+
+namespace Prospeo.DTOs.Webhook
 {
     /// <summary>
     /// Represents the payload structure for webhook data transfer.
     /// </summary>
-    public class WebhookPayload
+    public class WebhookPayload : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the unique identifier for the webhook payload.

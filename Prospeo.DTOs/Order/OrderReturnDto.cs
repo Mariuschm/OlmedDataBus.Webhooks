@@ -1,6 +1,7 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Order
 {
     /// <summary>
     /// Represents a request to process a return of ordered products.
@@ -25,7 +26,7 @@ namespace Prospeo.DTOs
     /// of batch numbers and expiration dates is critical for compliance and safety.
     /// </para>
     /// </remarks>
-    public class OrderReturnDto
+    public class OrderReturnDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the marketplace identifier where the original order was placed.
@@ -127,7 +128,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class OrderReturnItemDto
+    public class OrderReturnItemDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the Stock Keeping Unit (SKU) of the returned product.

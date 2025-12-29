@@ -1,6 +1,9 @@
+using Prospeo.DTOs.Core;
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Invoice
 {
     /// <summary>
     /// Represents a request to notify the system that an invoice has been sent to a customer.
@@ -20,7 +23,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class InvoiceSentRequest
+    public class InvoiceSentRequest : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the invoice number that was sent.
@@ -116,7 +119,7 @@ namespace Prospeo.DTOs
     /// This response confirms that the invoice sent notification was received and processed
     /// by the system, updating relevant records and maintaining compliance logs.
     /// </remarks>
-    public class InvoiceSentResponse
+    public class InvoiceSentResponse : DTOModelBase
     {
         /// <summary>
         /// Gets or sets a value indicating whether the operation was successful.

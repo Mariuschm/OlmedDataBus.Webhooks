@@ -1,6 +1,7 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Order
 {
     /// <summary>
     /// Represents the buyer information for an order.
@@ -22,7 +23,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public class OrderBuyerDto
+    public class OrderBuyerDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the full name of the buyer.

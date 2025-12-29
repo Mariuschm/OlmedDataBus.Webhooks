@@ -1,11 +1,12 @@
-﻿using System;
+﻿using Prospeo.DTOs.Core;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Invoice
 {
     /// <summary>
     /// Represents a single line item on a purchase invoice.
@@ -25,7 +26,7 @@ namespace Prospeo.DTOs
     /// </list>
     /// </para>
     /// </remarks>
-    public partial class InvoiceItem
+    public partial class InvoiceItem : DTOModelBase
     {
         #region FIELDS
 

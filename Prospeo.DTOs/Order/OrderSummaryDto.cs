@@ -1,6 +1,7 @@
+using Prospeo.DTOs.Core;
 using System.Text.Json.Serialization;
 
-namespace Prospeo.DTOs
+namespace Prospeo.DTOs.Order
 {
     /// <summary>
     /// Represents order summary information, typically used for financial totals or additional charges.
@@ -26,7 +27,7 @@ namespace Prospeo.DTOs
     /// that may not require all fields.
     /// </para>
     /// </remarks>
-    public class OrderSummaryDto
+    public class OrderSummaryDto : DTOModelBase
     {
         /// <summary>
         /// Gets or sets the type of the order summary entry.

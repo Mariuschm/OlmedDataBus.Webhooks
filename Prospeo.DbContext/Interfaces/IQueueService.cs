@@ -1,6 +1,6 @@
 using Prospeo.DbContext.Models;
 
-namespace Prospeo.DbContext.Services;
+namespace Prospeo.DbContext.Interfaces;
 
 /// <summary>
 /// Interfejs serwisu obs³ugi kolejki zadañ

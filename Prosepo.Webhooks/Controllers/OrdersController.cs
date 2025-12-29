@@ -13,14 +13,14 @@ namespace Prosepo.Webhooks.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [ApiKeyAuth]
-    public class OrderController : ControllerBase
+    public class OrdersController : ControllerBase
     {
         private readonly OlmedApiService _olmedService;
-        private readonly ILogger<OrderController> _logger;
+        private readonly ILogger<OrdersController> _logger;
 
-        public OrderController(
+        public OrdersController(
             OlmedApiService olmedService,
-            ILogger<OrderController> logger)
+            ILogger<OrdersController> logger)
         {
             _olmedService = olmedService;
             _logger = logger;

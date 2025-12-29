@@ -69,7 +69,7 @@ namespace Prosepo.Webhooks.Services
                 var responseContent = await response.Content.ReadAsStringAsync();
                 var tokenResponse = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(responseContent);
 
-                if (tokenResponse != null && tokenResponse.TryGetValue("token", out var tokenElement))
+                if (tokenResponse != null && tokenResponse.TryGetValue("access_token", out var tokenElement))
                 {
                     _cachedToken = tokenElement.GetString();
                     _tokenExpiration = DateTime.UtcNow.AddMinutes(50); // Cache na 50 minut (token wygasa po 60)

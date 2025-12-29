@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Prospeo.DbContext.Data;
 using Prospeo.DbContext.Services;
+using Prospeo.DbContext.Interfaces;
 using System.Security.Cryptography;
 using System.Text;
 

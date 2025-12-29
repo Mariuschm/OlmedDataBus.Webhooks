@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Prospeo.DbContext.Data;
+using Prospeo.DbContext.Interfaces;
 using Prospeo.DbContext.Models;
 
 namespace Prospeo.DbContext.Services;

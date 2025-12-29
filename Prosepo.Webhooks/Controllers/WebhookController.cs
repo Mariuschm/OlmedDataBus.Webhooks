@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Prospeo.DTOs;
 using Prosepo.Webhooks.Services;
-using Prospeo.DbContext.Services;
 using Prospeo.DbContext.Models;
 using SecureWebhook;
 using System.Text.Json;
+using Prospeo.DbContext.Interfaces;
 
 namespace Prosepo.Webhooks.Controllers
 {

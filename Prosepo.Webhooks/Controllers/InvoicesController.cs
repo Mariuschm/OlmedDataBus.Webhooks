@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Prosepo.Webhooks.Attributes;
 using Prosepo.Webhooks.Services;
-using Prospeo.DbContext.Services;
 using Prospeo.DbContext.Models;
 using Prospeo.DTOs;
 using System.Text.Json;
 using Prospeo.DbContext.Enums;
+using Prospeo.DbContext.Interfaces;
 
 namespace Prosepo.Webhooks.Controllers
 {
@@ -16,17 +16,17 @@ namespace Prosepo.Webhooks.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [ApiKeyAuth]
-    public class InvoiceController : ControllerBase
+    public class InvoicesController : ControllerBase
     {
         private readonly OlmedApiService _olmedService;
-        private readonly ILogger<InvoiceController> _logger;
+        private readonly ILogger<InvoicesController> _logger;
         private readonly IQueueService? _queueService;
         private readonly IFirmyService? _firmyService;
 
 
-        public InvoiceController(
+        public InvoicesController(
             OlmedApiService olmedService,
-            ILogger<InvoiceController> logger,
+            ILogger<InvoicesController> logger,
              IQueueService? queueService = null, IFirmyService? firmyService = null)
         {
             _olmedService = olmedService;

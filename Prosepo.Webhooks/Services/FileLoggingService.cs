@@ -15,7 +15,7 @@ namespace Prosepo.Webhooks.Services
         private readonly bool _isDebug;
         private static readonly object _lock = new object();
         private static readonly ConcurrentDictionary<string, string> _fileCache = new();
-
+        private readonly string secureKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44=";
         /// <summary>
         /// Inicjalizuje now¹ instancjê FileLoggingService.
         /// </summary>

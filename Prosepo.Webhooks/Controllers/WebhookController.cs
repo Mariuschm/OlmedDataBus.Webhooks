@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
+using Prosepo.Webhooks.Helpers;
 using Prosepo.Webhooks.Services;
-using Prospeo.DbContext.Models;
-using SecureWebhook;
-using System.Text.Json;
 using Prospeo.DbContext.Interfaces;
+using Prospeo.DbContext.Models;
 using Prospeo.DTOs.Order;
 using Prospeo.DTOs.Product;
 using Prospeo.DTOs.Webhook;
+using SecureWebhook;
+using System.Text.Json;
 
 namespace Prosepo.Webhooks.Controllers
 {
@@ -25,7 +26,8 @@ namespace Prosepo.Webhooks.Controllers
         private readonly FileLoggingService _fileLoggingService;
         private readonly IQueueService? _queueService;
         private readonly IFirmyService? _firmyService;
-
+        private readonly string secureKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44=";
+        
         /// <summary>
         /// Inicjalizuje now¹ instancjê WebhookController.
         /// </summary>
@@ -37,8 +39,9 @@ namespace Prosepo.Webhooks.Controllers
         public WebhookController(IConfiguration configuration, ILogger<WebhookController> logger, 
             FileLoggingService fileLoggingService, IQueueService? queueService = null, IFirmyService? firmyService = null)
         {
-            var encryptionKey = configuration["OlmedDataBus:WebhookKeys:EncryptionKey"] ?? string.Empty;
-            var hmacKey = configuration["OlmedDataBus:WebhookKeys:HmacKey"] ?? string.Empty;
+           
+            var encryptionKey = StringEncryptionHelper.DecryptIfEncrypted(configuration["OlmedDataBus:WebhookKeys:EncryptionKey"], secureKey)?? string.Empty;
+            var hmacKey = StringEncryptionHelper.DecryptIfEncrypted(configuration["OlmedDataBus:WebhookKeys:HmacKey"], secureKey)?? string.Empty;
             _helper = new SecureWebhookHelper(encryptionKey, hmacKey);
             _logger = logger;
             _configuration = configuration;
@@ -432,217 +435,6 @@ namespace Prosepo.Webhooks.Controllers
         }
 
         /// <summary>
-        /// Pobiera listê dostêpnych plików logów webhook.
-        /// </summary>
-        /// <returns>Lista plików logów</returns>
-        /// <response code="200">Lista plików zosta³a pobrana</response>
-        [HttpGet("logs")]
-        [ProducesResponseType(typeof(object), 200)]
-        public async Task<IActionResult> GetWebhookLogs()
-        {
-            try
-            {
-                var logFiles = await _fileLoggingService.GetLogFilesAsync();
-                var webhookLogs = logFiles.Where(f => f.FileName.Contains("webhook")).ToList();
-
-                return Ok(new
-                {
-                    Success = true,
-                    TotalFiles = webhookLogs.Count,
-                    LogFiles = webhookLogs
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "B³¹d podczas pobierania listy plików logów webhook");
-                await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
-                    "B³¹d podczas pobierania listy plików logów", ex);
-                
-                return StatusCode(500, new { Success = false, Message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Pobiera zdefiniowane foldery, które s¹ dostêpne do archiwizacji
-        /// </summary>
-        /// <returns>Lista folderów do archiwizacji</returns>
-        /// <response code="200">Foldery zosta³y pomyœlnie pobrane</response>
-        /// <response code="500">Wyst¹pi³ b³¹d podczas pobierania folderów</response>
-        [HttpGet("archive/folders")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(typeof(object), 500)]
-        public IActionResult GetArchiveFolders()
-        {
-            try
-            {
-                var folders = _configuration.GetSection("Archive:Folders").Get<List<string>>() ?? new List<string>();
-
-                return Ok(new 
-                { 
-                    Success = true, 
-                    Folders = folders 
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "B³¹d podczas pobierania folderów archiwum");
-                
-                return StatusCode(500, new { Success = false, Message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Rozpoczyna archiwizacjê dla zdefiniowanych folderów.
-        /// </summary>
-        /// <returns>Status operacji archiwizacji</returns>
-        /// <response code="200">Archiwizacja zosta³a pomyœlnie rozpoczêta</response>
-        /// <response code="500">Wyst¹pi³ b³¹d podczas uruchamiania archiwizacji</response>
-        [HttpPost("archive/start")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(typeof(object), 500)]
-        public IActionResult StartArchivization()
-        {
-            try
-            {
-                // Tutaj dodaj logikê do rozpoczynania archiwizacji, np. ustawienie flagi w bazie danych
-                // lub wywo³anie zewnêtrznego serwisu odpowiedzialnego za archiwizacjê.
-
-                return Ok(new { Success = true, Message = "Archiwizacja zosta³a pomyœlnie rozpoczêta." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "B³¹d podczas uruchamiania archiwizacji");
-                
-                return StatusCode(500, new { Success = false, Message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Zatrzymuje bie¿¹cy proces archiwizacji.
-        /// </summary>
-        /// <returns>Status operacji zatrzymywania archiwizacji</returns>
-        /// <response code="200">Archiwizacja zosta³a pomyœlnie zatrzymana</response>
-        /// <response code="500">Wyst¹pi³ b³¹d podczas zatrzymywania archiwizacji</response>
-        [HttpPost("archive/stop")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(typeof(object), 500)]
-        public IActionResult StopArchivization()
-        {
-            try
-            {
-                // Tutaj dodaj logikê do zatrzymywania archiwizacji, np. resetowanie flagi w bazie danych
-                // lub powiadomienie zewnêtrznego serwisu odpowiedzialnego za archiwizacjê.
-
-                return Ok(new { Success = true, Message = "Archiwizacja zosta³a pomyœlnie zatrzymana." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "B³¹d podczas zatrzymywania archiwizacji");
-                
-                return StatusCode(500, new { Success = false, Message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Pobiera status bie¿¹cego procesu archiwizacji.
-        /// </summary>
-        /// <returns>Status archiwizacji</returns>
-        /// <response code="200">Status archiwizacji zosta³ pomyœlnie pobrany</response>
-        /// <response code="500">Wyst¹pi³ b³¹d podczas pobierania statusu archiwizacji</response>
-        [HttpGet("archive/status")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(typeof(object), 500)]
-        public IActionResult GetArchivizationStatus()
-        {
-            try
-            {
-                // Tutaj dodaj logikê do pobierania statusu archiwizacji, np. odczytanie flagi z bazy danych
-                // lub zapytanie zewnêtrznego serwisu odpowiedzialnego za archiwizacjê.
-
-                var status = new 
-                {
-                    IsRunning = false, // Przyk³adowa wartoœæ, zmieñ na odpowiedni¹ logikê
-                    StartedAt = (DateTime?)null, // Przyk³adowa wartoœæ, zmieñ na odpowiedni¹ logikê
-                    CompletedAt = (DateTime?)null, // Przyk³adowa wartoœæ, zmieñ na odpowiedni¹ logikê
-                    ErrorMessage = (string)null // Przyk³adowa wartoœæ, zmieñ na odpowiedni¹ logikê
-                };
-
-                return Ok(new 
-                { 
-                    Success = true, 
-                    Status = status 
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "B³¹d podczas pobierania statusu archiwizacji");
-                
-                return StatusCode(500, new { Success = false, Message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Pobiera listê zadañ z kolejki dla produktów przetworzonych przez webhook.
-        /// </summary>
-        /// <returns>Lista zadañ z kolejki dla produktów</returns>
-        /// <response code="200">Lista zadañ zosta³a pobrana</response>
-        /// <response code="503">Serwis kolejki nie jest dostêpny</response>
-        [HttpGet("queue/products")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(typeof(object), 503)]
-        public async Task<IActionResult> GetProductQueueItems()
-        {
-            try
-            {
-                if (_queueService == null)
-                {
-                    return StatusCode(503, new { 
-                        Success = false, 
-                        Message = "Queue service nie jest dostêpny" 
-                    });
-                }
-
-                var productScope = _configuration.GetValue<int>("Queue:ProductScope", 1001);
-                var webhookProcessingFlag = _configuration.GetValue<int>("Queue:WebhookProcessingFlag", 100);
-
-                // Pobierz zadania z odpowiednim scope (produkty)
-                var queueItems = await _queueService.GetByScopeAsync(productScope);
-                
-                // Filtruj tylko zadania z webhook (po flagach)
-                var webhookItems = queueItems.Where(q => q.Flg == webhookProcessingFlag).ToList();
-
-                var result = webhookItems.Select(item => new
-                {
-                    Id = item.Id,
-                    RowID = item.RowID,
-                    FirmaId = item.FirmaId,
-                    Description = item.Description,
-                    TargetID = item.TargetID,
-                    DateAdd = item.DateAddDateTime,
-                    DateMod = item.DateModDateTime,
-                    RequestPreview = item.Request.Length > 200 ? item.Request.Substring(0, 200) + "..." : item.Request
-                }).ToList();
-
-                return Ok(new
-                {
-                    Success = true,
-                    TotalItems = result.Count,
-                    ProductScope = productScope,
-                    WebhookFlag = webhookProcessingFlag,
-                    QueueItems = result
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "B³¹d podczas pobierania zadañ z kolejki produktów");
-                await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
-                    "B³¹d podczas pobierania zadañ z kolejki produktów", ex);
-                
-                return StatusCode(500, new { Success = false, Message = ex.Message });
-            }
-        }
-
-        /// <summary>
         /// Testuje po³¹czenie z baz¹ danych, aby zweryfikowaæ, ¿e Microsoft.Data.SqlClient dzia³a poprawnie.
         /// </summary>
         /// <returns>Status po³¹czenia z baz¹ danych</returns>
@@ -655,7 +447,7 @@ namespace Prosepo.Webhooks.Controllers
         {
             try
             {
-                var connectionString = _configuration.GetConnectionString("DefaultConnection");
+                var connectionString = StringEncryptionHelper.DecryptIfEncrypted(_configuration.GetConnectionString("DefaultConnection"), secureKey);
                 
                 if (string.IsNullOrEmpty(connectionString))
                 {
@@ -674,7 +466,7 @@ namespace Prosepo.Webhooks.Controllers
 
                 await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
                     "Test po³¹czenia z baz¹ danych zakoñczony sukcesem", null, new { 
-                        ConnectionString = connectionString.Replace(_configuration["ConnectionStrings:DefaultConnection"]?.Split("Password=")[1]?.Split(";")[0] ?? "", "***"),
+                        ConnectionString = connectionString.Replace(connectionString?.Split("Password=")[1]?.Split(";")[0] ?? "", "***"),
                         TestResult = result
                     });
 

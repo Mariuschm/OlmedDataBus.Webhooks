@@ -1,3 +1,4 @@
+using Prosepo.Webhooks.Helpers;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -18,6 +19,7 @@ namespace Prosepo.Webhooks.Services
         private readonly string _password;
         private string? _cachedToken;
         private DateTime _tokenExpiration = DateTime.MinValue;
+        private readonly string secureKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44=";
 
         public OlmedApiService(
             HttpClient httpClient,
@@ -28,8 +30,8 @@ namespace Prosepo.Webhooks.Services
             _configuration = configuration;
             _logger = logger;
             _baseUrl = configuration["OlmedAuth:BaseUrl"] ?? "https://draft-csm-connector.grupaolmed.pl";
-            _username = configuration["OlmedAuth:Username"] ?? string.Empty;
-            _password = configuration["OlmedAuth:Password"] ?? string.Empty;
+            _username = StringEncryptionHelper.DecryptIfEncrypted(configuration["OlmedAuth:Username"], secureKey) ?? "test_prospeo";
+            _password = StringEncryptionHelper.DecryptIfEncrypted(configuration["OlmedAuth:Password"], secureKey) ?? "pvRGowxF%266J%2AM%24";
         }
 
         /// <summary>

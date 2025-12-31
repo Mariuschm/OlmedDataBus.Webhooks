@@ -1,9 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Prosepo.Webhooks.Helpers;
+using Prosepo.Webhooks.Models;
+using Prosepo.Webhooks.Services;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Prosepo.Webhooks.Services;
-using Prosepo.Webhooks.Models;
 
 namespace Prosepo.Webhooks.Controllers
 {
@@ -21,7 +22,7 @@ namespace Prosepo.Webhooks.Controllers
         private readonly CronSchedulerService _schedulerService;
         private readonly ProductSyncConfigurationService _productSyncConfigService;
         private readonly IServiceProvider _serviceProvider;
-        
+        private readonly string secureKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44=";
         /// <summary>
         /// Inicjalizuje now¹ instancjê CronController.
         /// Token management jest delegowane do CronSchedulerService.
@@ -267,14 +268,14 @@ namespace Prosepo.Webhooks.Controllers
 
                 // Minimalna implementacja logowania - u¿ywa tego samego storage co CronSchedulerService
                 _logger.LogInformation("Brak wa¿nego tokena - wykonywanie nowego logowania przez CronController");
-                
-                var username = _configuration["OlmedAuth:Username"] ?? "test_prospeo";
-                var password = _configuration["OlmedAuth:Password"] ?? "pvRGowxF%266J%2AM%24";
+
+                var username = StringEncryptionHelper.DecryptIfEncrypted(_configuration["OlmedAuth:Username"], secureKey) ?? "test_prospeo";
+                var password = StringEncryptionHelper.DecryptIfEncrypted(_configuration["OlmedAuth:Password"], secureKey) ?? "pvRGowxF%266J%2AM%24";
                 var baseUrl = _configuration["OlmedAuth:BaseUrl"] ?? "https://draft-csm-connector.grupaolmed.pl";
                 
                 var loginUrl = $"{baseUrl}/erp-api/auth/login?username={username}&password={Uri.EscapeDataString(password)}";
-
                 var request = new HttpRequestMessage(HttpMethod.Post, loginUrl);
+
                 request.Headers.Add("accept", "application/json");
                 request.Headers.Add("X-CSRF-TOKEN", "");
                 request.Content = new StringContent("", Encoding.UTF8);

@@ -15,6 +15,7 @@ namespace Prosepo.Webhooks.Services
         private ProductSyncConfigurationCollection? _cachedConfigurations;
         private DateTime _lastFileCheck = DateTime.MinValue;
         private readonly TimeSpan _cacheValidityTime = TimeSpan.FromMinutes(5);
+        private readonly string secureKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44=";
 
         /// <summary>
         /// Inicjalizuje now¹ instancjê ProductSyncConfigurationService.

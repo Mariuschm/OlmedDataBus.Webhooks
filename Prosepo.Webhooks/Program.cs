@@ -35,7 +35,7 @@ var encryptionKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWq
 var connectionString = StringEncryptionHelper.DecryptIfEncrypted(builder.Configuration.GetConnectionString("DefaultConnection"), encryptionKey);
 if (!string.IsNullOrEmpty(connectionString))
 {
-    builder.Services.AddProspeoServices(builder.Configuration);
+    builder.Services.AddProspeoServices(connectionString);
 }
 else
 {
@@ -72,6 +72,7 @@ if (!string.IsNullOrEmpty(connectionString))
 {
     try
     {
+   
         using var scope = app.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ProspeoDataContext>();    
         // Sprawdź czy można połączyć się z bazą danych

@@ -1,7 +1,8 @@
-using System.Collections.Concurrent;
-using System.Text.Json;
-using System.Text;
+using Prosepo.Webhooks.Helpers;
 using Prosepo.Webhooks.Models;
+using System.Collections.Concurrent;
+using System.Text;
+using System.Text.Json;
 
 namespace Prosepo.Webhooks.Services
 {
@@ -17,7 +18,7 @@ namespace Prosepo.Webhooks.Services
         private readonly IConfiguration _configuration;
         private readonly string _logDirectory;
         private FileLoggingService? _fileLoggingService;
-        
+        private readonly string secureKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44=";
         /// <summary>
         /// Thread-safe kolekcja przechowuj¹ca wszystkie zaplanowane zadania.
         /// Klucz: ID zadania, Wartoœæ: obiekt ScheduledJob z pe³nymi informacjami.
@@ -103,8 +104,8 @@ namespace Prosepo.Webhooks.Services
                 var httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
 
                 // Pobieranie danych autoryzacji z konfiguracji
-                var username = _configuration["OlmedAuth:Username"] ?? "test_prospeo";
-                var password = _configuration["OlmedAuth:Password"] ?? "pvRGowxF%266J%2AM%24";
+                var username = StringEncryptionHelper.DecryptIfEncrypted(_configuration["OlmedAuth:Username"], secureKey) ?? "test_prospeo";
+                var password = StringEncryptionHelper.DecryptIfEncrypted(_configuration["OlmedAuth:Password"], secureKey) ?? "pvRGowxF%266J%2AM%24";
                 var baseUrl = _configuration["OlmedAuth:BaseUrl"] ?? "https://draft-csm-connector.grupaolmed.pl";
                 
                 // Budowanie URL z parametrami query - zgodnie z dokumentacj¹ API Olmed

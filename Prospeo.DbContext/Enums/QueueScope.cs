@@ -12,7 +12,8 @@ public enum QueueScope
     Kontrahent = 32,
     Zamowienie = 960,
     FakutraZakupu = 1521,
-    Korekta = 1529
+    Korekta = 1529,
+    Sock = -16
 }
 
 /// <summary>

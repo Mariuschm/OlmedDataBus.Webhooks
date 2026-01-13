@@ -34,37 +34,74 @@ dotnet run
 - weryfikację podpisu HMAC SHA256 przesyłanych danych,
 - odszyfrowanie zaszyfrowanego payloadu (AES-256-CBC),
 - prostą integrację z aplikacjami .NET (np. ASP.NET Core, Windows Service, itp.).
-- **NOWE:** kontrolery Order i Invoice z autentykacją API Key do komunikacji z systemem Olmed
-
-Dzięki tej bibliotece partnerzy OLMED mogą w łatwy sposób odbierać, weryfikować i odszyfrowywać dane przesyłane przez webhooki.
+- **NOWE:** kontrolery Order, Invoice i Products z autentykacją API Key do komunikacji z systemem Olmed
+- **NOWE:** dedykowane klasy klientów API do użycia w innych projektach
 
 ---
 
-## 🆕 Nowe funkcjonalności - Kontrolery Order i Invoice
+## 🆕 API Endpoints
 
-### OrderController
-- **Endpoint:** `/api/order/update-status`
-- **Metoda:** GET
+### OrdersController
+- **POST** `/api/orders/update-status` - Aktualizacja statusu zamówienia
+- **POST** `/api/orders/upload-order-realization-result` - Przesłanie wyników realizacji
+- **GET** `/api/orders/authenticated-firma` - Weryfikacja API Key
 - **Autoryzacja:** API Key (nagłówek X-API-Key)
-- **Parametry:**
-  - `orderId` (string) - identyfikator zamówienia
-  - `orderStatus` (int) - nowy status zamówienia
-- **Opis:** Aktualizuje status zamówienia w systemie Olmed
+
+### ProductsController
+- **POST** `/api/products/update-product-stocks` - Aktualizacja stanów magazynowych
+- **Autoryzacja:** API Key (nagłówek X-API-Key)
 
 ### InvoiceController
-- **Endpoint:** `/api/invoice/sent`
-- **Metoda:** POST
+- **POST** `/api/invoice/sent` - Zgłoszenie wysłania faktury
 - **Autoryzacja:** API Key (nagłówek X-API-Key)
-- **Body:** JSON z danymi faktury (invoiceNumber, orderId, sentDate, recipientEmail, additionalData)
-- **Opis:** Zgłasza wysłanie faktury do systemu Olmed
 
-### Testowanie
-```powershell
-# Przetestuj nowe endpointy:
-.\test-order-invoice-api.ps1
+📖 **Pełna dokumentacja API:** [README_ORDER_INVOICE_API.md](Prosepo.Webhooks/README_ORDER_INVOICE_API.md)
+
+---
+
+## 🚀 Klienty API dla Zewnętrznych Projektów
+
+### OrdersApiClient
+Dedykowany klient do komunikacji z OrdersController.
+
+**Quick Start:**
+```csharp
+using var client = new OrdersApiClient("https://api.com", "api-key");
+
+var result = await client.UpdateOrderStatusAsync(new UpdateOrderStatusRequest
+{
+    Marketplace = "APTEKA_OLMED",
+    OrderNumber = "ORD/2024/01/0001",
+    Status = "1"
+});
+
+if (result.IsSuccess)
+    Console.WriteLine($"✓ Status: {result.Data.NewStatus}");
 ```
 
-📖 **Pełna dokumentacja:** [README_ORDER_INVOICE_API.md](Prosepo.Webhooks/README_ORDER_INVOICE_API.md)
+📖 **Pełna dokumentacja:** [ORDERS_API_CLIENT.md](ORDERS_API_CLIENT.md)  
+📖 **Kod źródłowy i przykłady:** [OrdersApiClient.README.md](OlmedDataBus.Webhooks.Client/OrdersApiClient.README.md)
+
+### ProductsApiClient
+Dedykowany klient do komunikacji z ProductsController.
+
+**Quick Start:**
+```csharp
+using var client = new ProductsApiClient("https://api.com", "api-key");
+
+var result = await client.UpdateSingleProductStockAsync(
+    marketplace: "APTEKA_OLMED",
+    sku: "PROD-001",
+    stock: 150,
+    averagePurchasePrice: 25.50m
+);
+
+if (result.IsSuccess)
+    Console.WriteLine($"✓ Zaktualizowano {result.Data.UpdatedCount} produktów");
+```
+
+📖 **Pełna dokumentacja:** [PRODUCTS_API_CLIENT.md](PRODUCTS_API_CLIENT.md)  
+📖 **Kod źródłowy i przykłady:** [ProductsApiClient.README.md](OlmedDataBus.Webhooks.Client/ProductsApiClient.README.md)
 
 ---
 
@@ -117,6 +154,27 @@ public class WebhookPayload
 
 ---
 
+## Testowanie
+
+```powershell
+# Przetestuj wszystkie endpointy API:
+.\test-order-invoice-api.ps1
+
+# Test kontrolera Order
+curl -X POST "https://localhost:7208/api/orders/update-status" `
+  -H "X-API-Key: your-api-key" `
+  -H "Content-Type: application/json" `
+  -d '{"marketplace":"APTEKA_OLMED","orderNumber":"ORD-001","status":"1"}'
+
+# Test kontrolera Products
+curl -X POST "https://localhost:7208/api/products/update-product-stocks" `
+  -H "X-API-Key: your-api-key" `
+  -H "Content-Type: application/json" `
+  -d '{"marketplace":"APTEKA_OLMED","skus":{"SKU001":{"stock":100,"average_purchase_price":25.50}}}'
+```
+
+---
+
 ## Instrukcja dołączenia biblioteki do projektu
 
 ### 1. Dodanie przez NuGet (zalecane, jeśli biblioteka jest publikowana)
@@ -138,6 +196,17 @@ Jeśli posiadasz tylko plik `OlmedDataBus.Webhooks.Client.dll`:
 3. Wybierz **Przeglądaj** i wskaż plik DLL.
 4. Zatwierdź dodanie odwołania.
 
+### 3. Użycie klientów API w zewnętrznych projektach
+
+Skopiuj kod źródłowy klientów API do swojego projektu:
+- [OrdersApiClient.README.md](OlmedDataBus.Webhooks.Client/OrdersApiClient.README.md) - kod i dokumentacja
+- [ProductsApiClient.README.md](OlmedDataBus.Webhooks.Client/ProductsApiClient.README.md) - kod i dokumentacja
+
+Wymagane zależności:
+- System.Text.Json >= 8.0.0
+- Prospeo.DTOs (project reference)
+- .NET 8.0+
+
 ---
 
 ## Konfiguracja kluczy
@@ -157,10 +226,39 @@ Klucze powinny być przekazane jako tekst o długości 32 znaków (256 bitów - 
 
 ---
 
+## 📚 Dokumentacja
+
+### Bezpieczeństwo i Konfiguracja
+- [SECURITY-CONFIGURATION.md](SECURITY-CONFIGURATION.md) - Szczegółowa konfiguracja bezpieczeństwa
+- [QUICK-START.md](QUICK-START.md) - Szybki start dla deweloperów
+
+### API i Integracja
+- [README_ORDER_INVOICE_API.md](Prosepo.Webhooks/README_ORDER_INVOICE_API.md) - Dokumentacja API
+- [ORDERS_API_CLIENT.md](ORDERS_API_CLIENT.md) - Klient API dla zamówień
+- [PRODUCTS_API_CLIENT.md](PRODUCTS_API_CLIENT.md) - Klient API dla produktów
+
+### Szczegółowe Dokumentacje Klientów
+- [OrdersApiClient.README.md](OlmedDataBus.Webhooks.Client/OrdersApiClient.README.md) - Kod źródłowy i przykłady
+- [ProductsApiClient.README.md](OlmedDataBus.Webhooks.Client/ProductsApiClient.README.md) - Kod źródłowy i przykłady
+
+### Integracja z Kolejką
+- [README_QUEUE_INTEGRATION.md](Prosepo.Webhooks/README_QUEUE_INTEGRATION.md) - Integracja z systemem kolejek
+
+### Synchronizacja Zamówień
+- [README_ORDER_SYNC.md](Prosepo.Webhooks/README_ORDER_SYNC.md) - Konfiguracja synchronizacji
+- [ORDERSYNC_SUMMARY.md](Prosepo.Webhooks/ORDERSYNC_SUMMARY.md) - Podsumowanie implementacji
+
+### Deployment
+- [IIS-DEPLOYMENT.md](IIS-DEPLOYMENT.md) - Wdrożenie na IIS
+- [CI-CD-README.md](CI-CD-README.md) - Automatyzacja CI/CD
+
+---
+
 ## Wymagania
 
 - .NET Standard 2.0 (kompatybilność z .NET Core 2.0+, .NET Framework 4.6.1+, .NET 5/6/7/8)
-- Do testowania: ASP.NET Core Web API (np. .NET 8)
+- Do testowania: ASP.NET Core Web API (np. .NET 8/9)
+- Dla klientów API: .NET 8.0+ (zalecane)
 
 ---
 

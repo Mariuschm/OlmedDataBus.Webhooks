@@ -67,7 +67,15 @@ public class Firmy
     /// Adres URL endpointu API dla tej firmy (opcjonalny)
     /// </summary>
     [Column("Endpoint")]
+    [MaxLength(500)]
     public string? Endpoint { get; set; }
+
+    /// <summary>
+    /// Określa czy ignorować błędy certyfikatu SSL dla tej firmy (opcjonalny, domyślnie false)
+    /// UWAGA: Używać tylko w środowisku deweloperskim!
+    /// </summary>
+    [Column("IgnoreCertificateErrors")]
+    public bool? IgnoreCertificateErrors { get; set; }
 
     /// <summary>
     /// Kolekcja zadań w kolejce powiązanych z tą firmą

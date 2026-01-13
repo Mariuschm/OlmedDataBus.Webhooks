@@ -64,6 +64,12 @@ public class Firmy
     public bool? AuthorizeAllEndpoints { get; set; }
 
     /// <summary>
+    /// Adres URL endpointu API dla tej firmy (opcjonalny)
+    /// </summary>
+    [Column("Endpoint")]
+    public string? Endpoint { get; set; }
+
+    /// <summary>
     /// Kolekcja zadań w kolejce powiązanych z tą firmą
     /// </summary>
     public virtual ICollection<Queue> QueueItems { get; set; } = new List<Queue>();

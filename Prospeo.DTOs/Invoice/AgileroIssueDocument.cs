@@ -57,6 +57,8 @@ namespace Prospeo.DTOs.Invoice
         /// - Complete audit trail with series numbers and quantities
         /// </remarks>
         public ReleaseAllocationValidationResult? AllocatedItems { get; set; }
+
+        public int XlDocumentId { get; set; }
     }
 
     /// <summary>

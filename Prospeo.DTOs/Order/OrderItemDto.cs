@@ -99,5 +99,20 @@ namespace Prospeo.DTOs.Order
         /// </remarks>
         [JsonPropertyName("vatRate")]
         public string VatRate { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the partial shipment cost allocated to this order line item.
+        /// </summary>
+        /// <value>
+        /// The portion of the total shipping/delivery cost that is allocated to this specific order item.
+        /// This value represents the proportional share of shipping costs for this line.
+        /// </value>
+        /// <remarks>
+        /// This property is used to distribute the total shipment costs across individual order items,
+        /// typically based on factors such as item value, weight, or quantity.
+        /// This allows for accurate cost tracking and profitability analysis at the line item level.
+        /// </remarks>
+        [JsonPropertyName("partialShipmentValue")]
+        public decimal PartialShipmentValue { get; set; }
     }
 }

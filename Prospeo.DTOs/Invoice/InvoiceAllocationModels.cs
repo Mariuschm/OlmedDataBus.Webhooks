@@ -51,7 +51,7 @@ namespace Prospeo.DTOs.Invoice
 
     /// <summary>
     /// Reprezentuje pojedyncz¹ pozycjê faktury przypisan¹ do linii zamówienia.
-    /// Zawiera wszystkie pola z OrderInvoiceItemDto potrzebne do zapisu w bazie danych.
+    /// Zawiera wszystkie pola z AgileroIssueDocumentItem potrzebne do zapisu w bazie danych.
     /// </summary>
     public class InvoiceItemAllocation
     {
@@ -124,6 +124,6 @@ namespace Prospeo.DTOs.Invoice
         /// <summary>
         /// Pozycje faktury, które nie zosta³y przypisane do ¿adnej linii zamówienia
         /// </summary>
-        public List<OrderInvoiceItemDto> UnallocatedItems { get; set; } = new();
+        public List<AgileroIssueDocumentItem> UnallocatedItems { get; set; } = new();
     }
 }

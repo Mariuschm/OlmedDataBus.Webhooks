@@ -42,6 +42,21 @@ namespace Prospeo.DTOs.Invoice
         /// List of items in the issue document
         /// </summary>
         public List<AgileroIssueDocumentItem> Items { get; set; } = new List<AgileroIssueDocumentItem>();
+
+        /// <summary>
+        /// Result of allocation validation and assignment of release items to order lines.
+        /// Contains allocated items per order line with complete validation status.
+        /// This property is populated during processing and contains the mapping between
+        /// order lines and their corresponding release items with series numbers and expiration dates.
+        /// </summary>
+        /// <remarks>
+        /// This property is set by the allocation process and contains:
+        /// - List of allocations for each order line
+        /// - Validation errors (shortages, overages)
+        /// - Warnings about unallocated items
+        /// - Complete audit trail with series numbers and quantities
+        /// </remarks>
+        public ReleaseAllocationValidationResult? AllocatedItems { get; set; }
     }
 
     /// <summary>

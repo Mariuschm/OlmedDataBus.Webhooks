@@ -8,3 +8,7 @@ dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "yryO
 dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "test_prospeo" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="
 /Password
 dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "pvRGowxF&6J*M$" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="
+
+
+
+"Server=PDCX1P2DB001;Database=ERPXL_Zawisza_TEST;User Id=ProspeoUser;Password=3^pt_kB4KZ;TrustServerCertificate=true;MultipleActiveResultSets=true;Connection Timeout=30;" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="

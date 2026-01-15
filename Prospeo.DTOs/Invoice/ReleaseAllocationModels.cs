@@ -4,9 +4,9 @@ using System.Collections.Generic;
 namespace Prospeo.DTOs.Invoice
 {
     /// <summary>
-    /// Reprezentuje alokacjê pozycji faktury do linii zamówienia
+    /// Reprezentuje alokacjê pozycji dokumentu wydania (WZ) do linii zamówienia
     /// </summary>
-    public class InvoiceLineAllocation
+    public class ReleaseLineAllocation
     {
         /// <summary>
         /// Numer linii zamówienia
@@ -44,16 +44,16 @@ namespace Prospeo.DTOs.Invoice
         public bool IsOverAllocated => AllocatedQuantity > OrderedQuantity;
 
         /// <summary>
-        /// Lista przypisanych pozycji faktury
+        /// Lista przypisanych pozycji dokumentu wydania
         /// </summary>
-        public List<InvoiceItemAllocation> AllocatedItems { get; set; } = new();
+        public List<ReleaseItemAllocation> AllocatedItems { get; set; } = new();
     }
 
     /// <summary>
-    /// Reprezentuje pojedyncz¹ pozycjê faktury przypisan¹ do linii zamówienia.
+    /// Reprezentuje pojedyncz¹ pozycjê dokumentu wydania przypisan¹ do linii zamówienia.
     /// Zawiera wszystkie pola z AgileroIssueDocumentItem potrzebne do zapisu w bazie danych.
     /// </summary>
-    public class InvoiceItemAllocation
+    public class ReleaseItemAllocation
     {
         /// <summary>
         /// Kod nadrzêdnego artyku³u (SKU)
@@ -97,9 +97,9 @@ namespace Prospeo.DTOs.Invoice
     }
 
     /// <summary>
-    /// Wynik walidacji alokacji pozycji faktury do linii zamówienia
+    /// Wynik walidacji alokacji pozycji dokumentu wydania do linii zamówienia
     /// </summary>
-    public class AllocationValidationResult
+    public class ReleaseAllocationValidationResult
     {
         /// <summary>
         /// Czy alokacja jest poprawna (wszystkie linie w pe³ni zrealizowane)
@@ -119,10 +119,10 @@ namespace Prospeo.DTOs.Invoice
         /// <summary>
         /// Lista alokacji dla wszystkich linii zamówienia
         /// </summary>
-        public List<InvoiceLineAllocation> Allocations { get; set; } = new();
+        public List<ReleaseLineAllocation> Allocations { get; set; } = new();
 
         /// <summary>
-        /// Pozycje faktury, które nie zosta³y przypisane do ¿adnej linii zamówienia
+        /// Pozycje dokumentu wydania, które nie zosta³y przypisane do ¿adnej linii zamówienia
         /// </summary>
         public List<AgileroIssueDocumentItem> UnallocatedItems { get; set; } = new();
     }

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Prospeo.DTOs.Invoice
@@ -16,31 +17,37 @@ namespace Prospeo.DTOs.Invoice
         /// <summary>
         /// Master system ID - order number in the main system
         /// </summary>
+        [JsonPropertyName("masterSystemId")]
         public int MasterSystemId { get; set; }
 
         /// <summary>
         /// Tracking number for shipment
         /// </summary>
+        [JsonPropertyName("trackingNumber")]
         public string TrackingNumber { get; set; } = string.Empty;
 
         /// <summary>
         /// Document status: 0 = Pending, 1 = Done
         /// </summary>
+        [JsonPropertyName("status")]
         public int Status { get; set; }
 
         /// <summary>
         /// Document type
         /// </summary>
+        [JsonPropertyName("type")]
         public int Type { get; set; }
 
         /// <summary>
         /// Creator/operator who created the document
         /// </summary>
+        [JsonPropertyName("creator")]
         public string Creator { get; set; } = string.Empty;
 
         /// <summary>
         /// List of items in the issue document
         /// </summary>
+        [JsonPropertyName("items")]
         public List<AgileroIssueDocumentItem> Items { get; set; } = new List<AgileroIssueDocumentItem>();
 
         /// <summary>
@@ -56,8 +63,10 @@ namespace Prospeo.DTOs.Invoice
         /// - Warnings about unallocated items
         /// - Complete audit trail with series numbers and quantities
         /// </remarks>
+        [JsonPropertyName("allocatedItems")]
         public ReleaseAllocationValidationResult? AllocatedItems { get; set; }
 
+        [JsonPropertyName("xlDocumentId")]
         public int XlDocumentId { get; set; }
     }
 
@@ -70,41 +79,49 @@ namespace Prospeo.DTOs.Invoice
         /// <summary>
         /// Quantity realized/issued
         /// </summary>
+        [JsonPropertyName("quantityRealized")]
         public decimal QuantityRealized { get; set; }
 
         /// <summary>
         /// Source article ID in Agilero system
         /// </summary>
+        [JsonPropertyName("sourceArticle_Id")]
         public int SourceArticle_Id { get; set; }
 
         /// <summary>
         /// Expiration date of the product
         /// </summary>
+        [JsonPropertyName("expirationDate")]
         public DateTime? ExpirationDate { get; set; }
 
         /// <summary>
         /// Series/batch number of the product
         /// </summary>
+        [JsonPropertyName("seriesNumber")]
         public string SeriesNumber { get; set; } = string.Empty;
 
         /// <summary>
         /// Warehouse ID where the item is stored
         /// </summary>
+        [JsonPropertyName("warehouse")]
         public int Warehouse { get; set; }
 
         /// <summary>
         /// Article master system ID (product ID in main ERP)
         /// </summary>
+        [JsonPropertyName("articleMasterSystemId")]
         public int ArticleMasterSystemId { get; set; }
 
         /// <summary>
         /// Article code (SKU) of the specific variant
         /// </summary>
+        [JsonPropertyName("articleCode")]
         public string ArticleCode { get; set; } = string.Empty;
 
         /// <summary>
         /// Parent article code (main product SKU)
         /// </summary>
+        [JsonPropertyName("parentArticleCode")]
         public string ParentArticleCode { get; set; } = string.Empty;
     }
 }

@@ -50,6 +50,11 @@ public class ProspeoDataContext : Microsoft.EntityFrameworkCore.DbContext
     /// </summary>
     public DbSet<Queue> Queues { get; set; } = null!;
 
+    /// <summary>
+    /// Tabela relacji miêdzy elementami kolejki
+    /// </summary>
+    public DbSet<QueueRelations> QueueRelations { get; set; } = null!;
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Jeœli opcje nie zosta³y skonfigurowane i mamy connection string
@@ -227,6 +232,56 @@ public class ProspeoDataContext : Microsoft.EntityFrameworkCore.DbContext
                 .HasForeignKey(e => e.FirmaId)
                 .HasConstraintName("FK_Queue_Firmy")
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Konfiguracja dla tabeli QueueRelations
+        modelBuilder.Entity<QueueRelations>(entity =>
+        {
+            // Nazwa tabeli i schemat
+            entity.ToTable("QueueRelations", "ProRWS");
+
+            // Klucz g³ówny
+            entity.HasKey(e => e.Id)
+                .HasName("PK_QueueRelations");
+
+            // Unikalne ograniczenie dla pary SourceItemId-TargetItemId
+            entity.HasIndex(e => new { e.SourceItemId, e.TargetItemId })
+                .IsUnique()
+                .HasDatabaseName("UQ_QueueRelations_Source_Target");
+
+            // Indeks dla SourceItemId (dla szybszego wyszukiwania relacji wychodz¹cych)
+            entity.HasIndex(e => e.SourceItemId)
+                .HasDatabaseName("IX_QueueRelations_SourceItemId");
+
+            // Indeks dla TargetItemId (dla szybszego wyszukiwania relacji przychodz¹cych)
+            entity.HasIndex(e => e.TargetItemId)
+                .HasDatabaseName("IX_QueueRelations_TargetItemId");
+
+            // Konfiguracja w³aœciwoœci
+            entity.Property(e => e.SourceItemId)
+                .IsRequired();
+
+            entity.Property(e => e.TargetItemId)
+                .IsRequired();
+
+            entity.Property(e => e.CreatedAt)
+                .IsRequired()
+                .HasColumnType("datetime2(0)")
+                .HasDefaultValueSql("SYSDATETIME()");
+
+            // Relacja do Ÿród³owego elementu kolejki (many-to-one)
+            entity.HasOne(e => e.SourceItem)
+                .WithMany(q => q.SourceRelations)
+                .HasForeignKey(e => e.SourceItemId)
+                .HasConstraintName("FK_QueueRelations_Source")
+                .OnDelete(DeleteBehavior.Restrict); // Prevent cascade delete loops
+
+            // Relacja do docelowego elementu kolejki (many-to-one)
+            entity.HasOne(e => e.TargetItem)
+                .WithMany(q => q.TargetRelations)
+                .HasForeignKey(e => e.TargetItemId)
+                .HasConstraintName("FK_QueueRelations_Target")
+                .OnDelete(DeleteBehavior.Restrict); // Prevent cascade delete loops
         });
     }
 }

@@ -97,6 +97,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFirmyService, FirmyService>();
         services.AddScoped<IQueueStatusService, QueueStatusService>();
         services.AddScoped<IQueueService, QueueService>();
+        services.AddScoped<IQueueRelationsService, QueueRelationsService>();
 
         return services;
     }
@@ -116,6 +117,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFirmyService, FirmyService>();
         services.AddScoped<IQueueStatusService, QueueStatusService>();
         services.AddScoped<IQueueService, QueueService>();
+        services.AddScoped<IQueueRelationsService, QueueRelationsService>();
 
         return services;
     }
@@ -135,6 +137,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFirmyService, FirmyService>();
         services.AddScoped<IQueueStatusService, QueueStatusService>();
         services.AddScoped<IQueueService, QueueService>();
+        services.AddScoped<IQueueRelationsService, QueueRelationsService>();
 
         return services;
     }

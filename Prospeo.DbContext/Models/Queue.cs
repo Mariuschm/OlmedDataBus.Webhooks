@@ -110,6 +110,26 @@ public class Queue
     public virtual Firmy? Firma { get; set; }
 
     /// <summary>
+    /// Relacje, gdzie ten element jest Ÿród³em (parent)
+    /// </summary>
+    /// <remarks>
+    /// Kolekcja wszystkich relacji, gdzie to zadanie jest elementem nadrzêdnym.
+    /// Przyk³ad: zamówienie mo¿e mieæ wiele wydañ magazynowych jako "dzieci".
+    /// </remarks>
+    [InverseProperty(nameof(QueueRelations.SourceItem))]
+    public virtual ICollection<QueueRelations> SourceRelations { get; set; } = new HashSet<QueueRelations>();
+
+    /// <summary>
+    /// Relacje, gdzie ten element jest celem (child)
+    /// </summary>
+    /// <remarks>
+    /// Kolekcja wszystkich relacji, gdzie to zadanie jest elementem zale¿nym.
+    /// Przyk³ad: faktura mo¿e byæ powi¹zana z jednym lub wiêcej zamówieniami.
+    /// </remarks>
+    [InverseProperty(nameof(QueueRelations.TargetItem))]
+    public virtual ICollection<QueueRelations> TargetRelations { get; set; } = new HashSet<QueueRelations>();
+
+    /// <summary>
     /// W³aœciwoœæ pomocnicza - konwertuje DateAdd na DateTime
     /// </summary>
     [NotMapped]

@@ -97,5 +97,7 @@ namespace Prospeo.DTOs.Order
         /// </remarks>
         [JsonPropertyName("description")]
         public string? Description { get; set; }
+        [JsonPropertyName("label")]
+        public string? Label { get; set; }
     }
 }

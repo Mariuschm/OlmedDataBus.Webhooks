@@ -317,6 +317,194 @@ namespace Prosepo.Webhooks.Controllers
         }
 
         /// <summary>
+        /// Przesy³a dokument (faktura lub korekta) do zamówienia w systemie Olmed
+        /// </summary>
+        /// <param name="request">Dane ¿¹dania z dokumentem</param>
+        /// <returns>Wynik operacji przes³ania dokumentu</returns>
+        /// <remarks>
+        /// Przyk³ad u¿ycia:
+        /// POST /api/orders/upload-document-to-order
+        /// Body:
+        /// {
+        ///   "marketplace": "APTEKA_OLMED",
+        ///   "orderNumber": "ORD/2024/01/0001",
+        ///   "documentType": "invoice",
+        ///   "fileFormat": "pdf",
+        ///   "documentFile": "base64_encoded_file_content"
+        /// }
+        /// 
+        /// Wymagany nag³ówek: X-API-Key
+        /// 
+        /// Mo¿liwe wartoœci documentType: "invoice", "correction"
+        /// Mo¿liwe wartoœci fileFormat: "xml", "pdf"
+        /// </remarks>
+        [HttpPost("upload-document-to-order")]
+        [ProducesResponseType(typeof(UploadDocumentToOrderResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> UploadDocumentToOrder([FromBody] UploadDocumentToOrderRequest request)
+        {
+            // Pobierz informacje o zalogowanej firmie
+            var firmaId = HttpContext.Items["FirmaId"]?.ToString();
+            var firmaNazwa = HttpContext.Items["FirmaNazwa"]?.ToString();
+
+            _logger.LogInformation(
+                "¯¹danie przes³ania dokumentu do zamówienia: OrderNumber={OrderNumber}, DocumentType={DocumentType}, FileFormat={FileFormat}, Marketplace={Marketplace}, Firma={FirmaNazwa} (ID: {FirmaId})",
+                request.OrderNumber, request.DocumentType, request.FileFormat, request.Marketplace, firmaNazwa, firmaId);
+
+            // Walidacja parametrów
+            if (string.IsNullOrWhiteSpace(request.OrderNumber))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    error = "OrderNumber jest wymagany",
+                    message = "Parametr orderNumber nie mo¿e byæ pusty"
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Marketplace))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    error = "Marketplace jest wymagany",
+                    message = "Parametr marketplace nie mo¿e byæ pusty"
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.DocumentType))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    error = "DocumentType jest wymagany",
+                    message = "Parametr documentType nie mo¿e byæ pusty"
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.FileFormat))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    error = "FileFormat jest wymagany",
+                    message = "Parametr fileFormat nie mo¿e byæ pusty"
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.DocumentFile))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    error = "DocumentFile jest wymagany",
+                    message = "Parametr documentFile nie mo¿e byæ pusty"
+                });
+            }
+
+            // Walidacja formatu pliku
+            var validFormats = new[] { "xml", "pdf" };
+            if (!validFormats.Contains(request.FileFormat.ToLower()))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    error = "Nieprawid³owy format pliku",
+                    message = $"FileFormat musi byæ jedn¹ z wartoœci: {string.Join(", ", validFormats)}"
+                });
+            }
+
+            // Walidacja typu dokumentu
+            var validDocumentTypes = new[] { "invoice", "correction" };
+            if (!validDocumentTypes.Contains(request.DocumentType.ToLower()))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    error = "Nieprawid³owy typ dokumentu",
+                    message = $"DocumentType musi byæ jedn¹ z wartoœci: {string.Join(", ", validDocumentTypes)}"
+                });
+            }
+
+            // Walidacja base64
+            try
+            {
+                Convert.FromBase64String(request.DocumentFile);
+            }
+            catch (FormatException)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    error = "Nieprawid³owy format pliku",
+                    message = "DocumentFile musi byæ prawid³owym ci¹giem base64"
+                });
+            }
+
+            try
+            {
+                // Przygotuj dane do wys³ania do Olmed
+                var requestData = new
+                {
+                    marketplace = request.Marketplace,
+                    orderNumber = request.OrderNumber,
+                    documentType = request.DocumentType,
+                    fileFormat = request.FileFormat,
+                    documentFile = request.DocumentFile
+                };
+
+                // Wyœlij ¿¹danie do Olmed API
+                var (success, response, statusCode) = await _olmedService.PostAsync(
+                    "/erp-api/orders/upload-document-to-order",
+                    requestData);
+
+                if (success)
+                {
+                    _logger.LogInformation(
+                        "Pomyœlnie przes³ano dokument do zamówienia {OrderNumber}, typ: {DocumentType}, format: {FileFormat}",
+                        request.OrderNumber, request.DocumentType, request.FileFormat);
+
+                    return Ok(new UploadDocumentToOrderResponse
+                    {
+                        Success = true,
+                        Message = "Dokument zosta³ pomyœlnie przes³any do zamówienia",
+                        OrderNumber = request.OrderNumber,
+                        DocumentType = request.DocumentType
+                    });
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "B³¹d podczas przesy³ania dokumentu do zamówienia {OrderNumber}: StatusCode={StatusCode}, Response={Response}",
+                        request.OrderNumber, statusCode, response);
+
+                    return StatusCode(statusCode, new
+                    {
+                        success = false,
+                        error = "B³¹d podczas przesy³ania dokumentu w systemie Olmed",
+                        message = response,
+                        statusCode = statusCode
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Wyj¹tek podczas przesy³ania dokumentu do zamówienia {OrderNumber}",
+                    request.OrderNumber);
+
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "B³¹d serwera",
+                    message = "Wyst¹pi³ nieoczekiwany b³¹d podczas przesy³ania dokumentu do zamówienia"
+                });
+            }
+        }
+
+        /// <summary>
         /// Pobiera informacje o zalogowanej firmie na podstawie API Key
         /// </summary>
         /// <returns>Dane firmy</returns>

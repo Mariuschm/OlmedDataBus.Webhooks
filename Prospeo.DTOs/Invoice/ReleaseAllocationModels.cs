@@ -94,6 +94,21 @@ namespace Prospeo.DTOs.Invoice
         /// ID artyku³u w systemie g³ównym
         /// </summary>
         public int ArticleMasterSystemId { get; set; }
+
+        /// <summary>
+        /// Typ dokumentu TraElem (CDN.TraElem.Tre_GIDTyp) - SMALLINT
+        /// </summary>
+        public short TreGIDTyp { get; set; }
+
+        /// <summary>
+        /// Numer dokumentu TraElem (CDN.TraElem.Tre_GIDNumer)
+        /// </summary>
+        public int TreGIDNumer { get; set; }
+
+        /// <summary>
+        /// Lp pozycji dokumentu TraElem (CDN.TraElem.Tre_GIDLp) - SMALLINT
+        /// </summary>
+        public short TreGIDLp { get; set; }
     }
 
     /// <summary>

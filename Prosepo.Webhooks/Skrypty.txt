@@ -1,13 +1,25 @@
 ﻿/Cstring
 dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "Server=PDCX1P2DB001;Database=PROSWB;User Id=ProspeoUser;Password=3^pt_kB4KZ;TrustServerCertificate=true;MultipleActiveResultSets=true;Connection Timeout=30;" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="
 /EncryptionKey
+*TEST*
 dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "yw523eo6PwCKdEKHC61ocrwhTfceSZgV" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="
-/EncryptionKey
+*PROD*
+dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "vehnBMP2fX8wXhehQmW2EGJtV5fZkXBA" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="
+/Hnac
+*TEST*
 dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "yryOvM0rNbhiuzbpF3WKcTcKWIluZ7ki" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="
+*PROD*
+dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "JvhQcxjXcG94EvJ1T2zFXf760vcY8ZvK" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="
 /UserName
+*TEST*
 dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "test_prospeo" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="
+*PROD*
+dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "prospeo" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="
 /Password
+*TEST*
 dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "pvRGowxF&6J*M$" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="
+*PROD*
+dotnet run --project Prosepo.Webhooks --no-build -- encrypt-tool --encrypt "ijp@?AnKiyWj8b1" --key "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44="
 
 
 

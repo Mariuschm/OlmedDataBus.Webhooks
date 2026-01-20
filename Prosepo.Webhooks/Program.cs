@@ -4,12 +4,17 @@ using Prospeo.DbContext.Extensions;
 using Prospeo.DbContext.Data;
 using Microsoft.EntityFrameworkCore;
 using Prosepo.Webhooks.Helpers;
+using System.Text.Json.Serialization;
+
 // Sprawdź czy uruchomiono narzędzie szyfrowania
 if (args.Length > 0 && args[0] == "encrypt-tool")
 {
     EncryptionTool.Run(args);
     return;
 }
+
+// Włącz enhanced model metadata dla .NET 9 compatibility - MUSI być przed builder.Build()
+AppContext.SetSwitch("Microsoft.AspNetCore.Mvc.ApiExplorer.IsEnhancedModelMetadataSupported", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,10 +65,26 @@ builder.Services.AddScoped<OrderSyncConfigurationService>();
 // Rejestracja GracefulShutdownService jako Hosted Service
 builder.Services.AddHostedService<GracefulShutdownService>();
 
-builder.Services.AddControllers();
+// Konfiguracja kontrolerów z JSON options dla .NET 9
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Konfiguracja dla .NET 9 - używaj reflection-based serialization
+        options.JsonSerializerOptions.TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver();
+        
+        // Opcjonalnie: dodatkowe ustawienia JSON
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    // Dodaj konfigurację dla lepszej kompatybilności z .NET 9
+    options.CustomSchemaIds(type => type.FullName);
+});
 
 var app = builder.Build();
 

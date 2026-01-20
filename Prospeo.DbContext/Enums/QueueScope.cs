@@ -63,7 +63,17 @@ public enum QueueScope
     /// <summary>
     /// Changes Agilero status for order
     /// </summary>
-    AgileroStatus = -960
+    AgileroStatus = -960,
+    /// <summary>
+    /// Generates Agilero source inconme document
+    /// </summary>
+    AgileroIncome = -1521,
+    /// <summary>
+    /// Generates Agilero source issue document
+    /// </summary>
+    AgileroRelease = -1616,
+   
+        
 }
 
 /// <summary>

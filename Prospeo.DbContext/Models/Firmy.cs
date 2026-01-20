@@ -77,6 +77,8 @@ public class Firmy
     [Column("IgnoreCertificateErrors")]
     public bool? IgnoreCertificateErrors { get; set; }
 
+    public decimal? Margin { get; set; }
+
     /// <summary>
     /// Kolekcja zadań w kolejce powiązanych z tą firmą
     /// </summary>

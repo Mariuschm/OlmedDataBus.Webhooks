@@ -58,7 +58,12 @@ public enum QueueScope
     /// <summary>
     /// Operation on MMW document (Inter-warehouse Transfer)
     /// </summary>
-    MMW = 1603
+    MMW = 1603,
+
+    /// <summary>
+    /// Changes Agilero status for order
+    /// </summary>
+    AgileroStatus = -960
 }
 
 /// <summary>

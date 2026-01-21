@@ -126,7 +126,7 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
                 Flg = flag,
                 DateAddDateTime = DateTime.UtcNow,
                 DateModDateTime = DateTime.UtcNow,
-                ChangeType = context.ChangeType ?? string.Empty,
+                ChangeType = context.WebhookType ?? string.Empty,
                 WebhookRawData = context.DecryptedJson
             };
 

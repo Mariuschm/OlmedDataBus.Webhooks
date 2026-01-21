@@ -136,7 +136,7 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
                 DateAddDateTime = DateTime.UtcNow,
                 DateModDateTime = DateTime.UtcNow,
                 WebhookRawData = context.DecryptedJson,
-                ChangeType = context.ChangeType ?? string.Empty
+                ChangeType = context.WebhookType ?? string.Empty
             };
 
             return await _queueService.AddAsync(queueItem);

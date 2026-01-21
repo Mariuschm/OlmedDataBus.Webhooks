@@ -1,13 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Prosepo.Webhooks.Helpers;
 using Prosepo.Webhooks.Services;
+using Prosepo.Webhooks.Services.Webhook;
 using Prospeo.DbContext.Interfaces;
-using Prospeo.DbContext.Models;
-using Prospeo.DTOs.Order;
-using Prospeo.DTOs.Product;
 using Prospeo.DTOs.Webhook;
 using SecureWebhook;
-using System.Text.Json;
 
 namespace Prosepo.Webhooks.Controllers
 {
@@ -18,36 +15,34 @@ namespace Prosepo.Webhooks.Controllers
     [ApiController]
     [Route("api/[controller]")]
     public class WebhookController : ControllerBase
-    {   
+    {
         private readonly SecureWebhookHelper _helper;
         private readonly ILogger<WebhookController> _logger;
         private readonly IConfiguration _configuration;
         private readonly string _webhookDataDirectory;
         private readonly FileLoggingService _fileLoggingService;
-        private readonly IQueueService? _queueService;
-        private readonly IFirmyService? _firmyService;
+        private readonly IWebhookDataParser _webhookDataParser;
+        private readonly IWebhookProcessingOrchestrator _processingOrchestrator;
         private readonly string secureKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44=";
-        
+
         /// <summary>
         /// Inicjalizuje now¹ instancjê WebhookController.
         /// </summary>
-        /// <param name="configuration">Konfiguracja aplikacji</param>
-        /// <param name="logger">Logger do rejestrowania zdarzeñ</param>
-        /// <param name="fileLoggingService">Serwis logowania do plików</param>
-        /// <param name="queueService">Serwis obs³ugi kolejki (opcjonalny)</param>
-        /// <param name="firmyService">Serwis obs³ugi firm (opcjonalny)</param>
-        public WebhookController(IConfiguration configuration, ILogger<WebhookController> logger, 
-            FileLoggingService fileLoggingService, IQueueService? queueService = null, IFirmyService? firmyService = null)
+        public WebhookController(
+            IConfiguration configuration,
+            ILogger<WebhookController> logger,
+            FileLoggingService fileLoggingService,
+            IWebhookDataParser webhookDataParser,
+            IWebhookProcessingOrchestrator processingOrchestrator)
         {
-           
-            var encryptionKey = StringEncryptionHelper.DecryptIfEncrypted(configuration["OlmedDataBus:WebhookKeys:EncryptionKey"], secureKey)?? string.Empty;
-            var hmacKey = StringEncryptionHelper.DecryptIfEncrypted(configuration["OlmedDataBus:WebhookKeys:HmacKey"], secureKey)?? string.Empty;
+            var encryptionKey = StringEncryptionHelper.DecryptIfEncrypted(configuration["OlmedDataBus:WebhookKeys:EncryptionKey"], secureKey) ?? string.Empty;
+            var hmacKey = StringEncryptionHelper.DecryptIfEncrypted(configuration["OlmedDataBus:WebhookKeys:HmacKey"], secureKey) ?? string.Empty;
             _helper = new SecureWebhookHelper(encryptionKey, hmacKey);
             _logger = logger;
             _configuration = configuration;
             _fileLoggingService = fileLoggingService;
-            _queueService = queueService;
-            _firmyService = firmyService;
+            _webhookDataParser = webhookDataParser;
+            _processingOrchestrator = processingOrchestrator;
 
             // Tworzenie katalogu dla zapisywania danych webhook
             _webhookDataDirectory = _configuration["WebhookStorage:Directory"] ?? Path.Combine(Directory.GetCurrentDirectory(), "WebhookData");
@@ -71,14 +66,15 @@ namespace Prosepo.Webhooks.Controllers
             [FromHeader(Name = "X-OLMED-ERP-API-SIGNATURE")] string signature)
         {
             var processingStartTime = DateTime.UtcNow;
-            
+
             if (string.IsNullOrWhiteSpace(signature))
             {
                 var errorMessage = "Brak nag³ówka X-OLMED-ERP-API-SIGNATURE";
                 _logger.LogWarning("Odrzucono webhook - {Error} - GUID: {Guid}", errorMessage, payload?.guid);
-                
-                await _fileLoggingService.LogAsync("webhook", LogLevel.Warning, errorMessage, null, new { 
-                    Guid = payload?.guid, 
+
+                await _fileLoggingService.LogAsync("webhook", LogLevel.Warning, errorMessage, null, new
+                {
+                    Guid = payload?.guid,
                     WebhookType = payload?.webhookType,
                     ProcessingTime = DateTime.UtcNow - processingStartTime
                 });
@@ -89,7 +85,8 @@ namespace Prosepo.Webhooks.Controllers
             _logger.LogInformation("Otrzymano webhook - GUID: {Guid}, Typ: {Type}", payload.guid, payload.webhookType);
 
             // Strukturalne logowanie otrzymania webhook do pliku
-            await _fileLoggingService.LogStructuredAsync("webhook", LogLevel.Information, "Webhook received", new {
+            await _fileLoggingService.LogStructuredAsync("webhook", LogLevel.Information, "Webhook received", new
+            {
                 Guid = payload.guid,
                 WebhookType = payload.webhookType,
                 ReceivedAt = processingStartTime,
@@ -102,21 +99,57 @@ namespace Prosepo.Webhooks.Controllers
             {
                 _logger.LogInformation("Pomyœlnie odszyfrowano webhook - GUID: {Guid}", payload.guid);
 
-                // Dodanie ProductDto do kolejki jeœli webhook zawiera dane produktu
                 try
                 {
-                    await AddToQueue(payload.guid, payload.webhookType, json);
+                    var processingSuccess = await ProcessWebhookDataAsync(payload.guid, payload.webhookType, json);
+                    
+                    if (!processingSuccess)
+                    {
+                        _logger.LogError("Przetwarzanie webhook zakoñczone niepowodzeniem - GUID: {Guid}", payload.guid);
+                        
+                        await _fileLoggingService.LogAsync("webhook", LogLevel.Error,
+                            "Przetwarzanie webhook zakoñczone niepowodzeniem", null, new
+                            {
+                                Guid = payload.guid,
+                                WebhookType = payload.webhookType,
+                                ProcessingTime = DateTime.UtcNow - processingStartTime
+                            });
+
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "B³¹d podczas przetwarzania webhook",
+                            message = "Nie uda³o siê przetworzyæ danych webhook",
+                            guid = payload.guid
+                        });
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "B³¹d podczas dodawania do kolejki - GUID: {Guid}", payload.guid);
-                    // Nie przerywamy przetwarzania - webhook zosta³ ju¿ odebrany
+                    _logger.LogError(ex, "B³¹d podczas przetwarzania webhook - GUID: {Guid}", payload.guid);
+                    
+                    await _fileLoggingService.LogAsync("webhook", LogLevel.Error,
+                        "Wyj¹tek podczas przetwarzania webhook", ex, new
+                        {
+                            Guid = payload.guid,
+                            WebhookType = payload.webhookType,
+                            ProcessingTime = DateTime.UtcNow - processingStartTime
+                        });
+
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "B³¹d podczas przetwarzania webhook",
+                        message = ex.Message,
+                        guid = payload.guid
+                    });
                 }
 
                 var processingTime = DateTime.UtcNow - processingStartTime;
 
                 // Strukturalne logowanie sukcesu do pliku
-                await _fileLoggingService.LogStructuredAsync("webhook", LogLevel.Information, "Webhook processed successfully", new {
+                await _fileLoggingService.LogStructuredAsync("webhook", LogLevel.Information, "Webhook processed successfully", new
+                {
                     Guid = payload.guid,
                     WebhookType = payload.webhookType,
                     ProcessedAt = DateTime.UtcNow,
@@ -124,14 +157,20 @@ namespace Prosepo.Webhooks.Controllers
                     DecryptionSuccess = true
                 });
 
-                return Ok();
+                return Ok(new
+                {
+                    success = true,
+                    message = "Webhook przetworzony pomyœlnie",
+                    guid = payload.guid
+                });
             }
 
             var decryptionErrorMessage = "Nie uda³o siê zweryfikowaæ lub odszyfrowaæ webhook";
             _logger.LogError("{Error} - GUID: {Guid}", decryptionErrorMessage, payload.guid);
 
             // Logowanie b³êdu deszyfracji do pliku
-            await _fileLoggingService.LogAsync("webhook", LogLevel.Error, decryptionErrorMessage, null, new {
+            await _fileLoggingService.LogAsync("webhook", LogLevel.Error, decryptionErrorMessage, null, new
+            {
                 Guid = payload.guid,
                 WebhookType = payload.webhookType,
                 SignatureLength = signature?.Length ?? 0,
@@ -140,6 +179,48 @@ namespace Prosepo.Webhooks.Controllers
             });
 
             return BadRequest(decryptionErrorMessage);
+        }
+
+        /// <summary>
+        /// Przetwarza odszyfrowane dane webhook u¿ywaj¹c wzorca Strategy + Chain of Responsibility
+        /// </summary>
+        /// <returns>True jeœli przetwarzanie zakoñczone sukcesem, False w przeciwnym razie</returns>
+        private async Task<bool> ProcessWebhookDataAsync(string guid, string webhookType, string decryptedJson)
+        {
+            try
+            {
+                // Krok 1: Parsuj dane webhook
+                var parseResult = await _webhookDataParser.ParseAsync(decryptedJson, webhookType);
+
+                // Krok 2: Przygotuj kontekst przetwarzania
+                var context = new WebhookProcessingContext
+                {
+                    Guid = guid,
+                    WebhookType = webhookType,
+                    ChangeType = parseResult.ChangeType,
+                    DecryptedJson = decryptedJson,
+                    DefaultFirmaId = _configuration.GetValue<int>("Queue:DefaultFirmaId", 1),
+                    SecondFirmaId = _configuration.GetValue<int>("Queue:SecondFirmaId", 1),
+                    ParseResult = parseResult
+                };
+
+                // Krok 3: U¿yj orchestratora do przetworzenia webhook
+                var result = await _processingOrchestrator.ProcessWebhookAsync(context);
+
+                if (!result.Success)
+                {
+                    _logger.LogError("Nie uda³o siê przetworzyæ webhook - GUID: {Guid}, Error: {Error}",
+                        guid, result.ErrorMessage);
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas przetwarzania danych webhook - GUID: {Guid}", guid);
+                throw; // Re-throw aby by³ przechwycony w Receive()
+            }
         }
 
         /// <summary>
@@ -154,257 +235,19 @@ namespace Prosepo.Webhooks.Controllers
                 {
                     Directory.CreateDirectory(_webhookDataDirectory);
                     _logger.LogInformation("Utworzono katalog webhook: {Directory}", _webhookDataDirectory);
-                    
+
                     // Logowanie do pliku
-                    _ = Task.Run(async () => await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
+                    _ = Task.Run(async () => await _fileLoggingService.LogAsync("webhook", LogLevel.Information,
                         "Utworzono katalog webhook", null, new { Directory = _webhookDataDirectory }));
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "B³¹d podczas tworzenia katalogu webhook: {Directory}", _webhookDataDirectory);
-                
+
                 // Logowanie b³êdu do pliku
-                _ = Task.Run(async () => await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
+                _ = Task.Run(async () => await _fileLoggingService.LogAsync("webhook", LogLevel.Error,
                     "B³¹d podczas tworzenia katalogu webhook", ex, new { Directory = _webhookDataDirectory }));
-            }
-        }
-
-        /// <summary>
-        /// Dodaje ProductDto do kolejki jeœli webhook zawiera odpowiednie dane produktu.
-        /// </summary>
-        /// <param name="guid">Identyfikator webhook</param>
-        /// <param name="webhookType">Typ webhook</param>
-        /// <param name="decryptedJson">Odszyfrowane dane JSON</param>
-        /// <returns>Task reprezentuj¹cy operacjê asynchroniczn¹</returns>
-        private async Task AddToQueue(string guid, string webhookType, string decryptedJson)
-        {
-            // SprawdŸ czy serwis kolejki jest dostêpny
-            if (_queueService == null)
-            {
-                _logger.LogWarning("QueueService nie jest dostêpny - pominiêto dodanie do kolejki - GUID: {Guid}", guid);
-                return;
-            }
-
-            try
-            {
-                // JsonSerializerOptions z custom converter dla DateTime
-                var jsonOptions = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    Converters = { new CustomDateTimeConverter() }
-                };
-
-                // Parsuj JSON aby sprawdziæ czy zawiera productData lub orderData
-                using var document = JsonDocument.Parse(decryptedJson);
-                var root = document.RootElement;
-                
-                ProductDto? productData = null;
-                OrderDto? orderData = null;
-                string? changeType = null;
-
-                // SprawdŸ czy webhook zawiera changeType
-                if (root.TryGetProperty("changeType", out var changeTypeElement))
-                {
-                    changeType = changeTypeElement.GetString();
-                }
-
-                // SprawdŸ czy webhook zawiera productData
-                if (root.TryGetProperty("productData", out var productDataElement))
-                {
-                    var productDataJson = productDataElement.GetRawText();
-                    productData = JsonSerializer.Deserialize<ProductDto>(productDataJson, jsonOptions);
-                }
-                // Jeœli ca³oœæ jest ProductDto (bez zagnie¿d¿enia)
-                else if (webhookType?.ToLower().Contains("product") == true)
-                {
-                    try
-                    {
-                        productData = JsonSerializer.Deserialize<ProductDto>(decryptedJson, jsonOptions);
-                    }
-                    catch (JsonException)
-                    {
-                        // Nie uda³o siê deserializowaæ jako ProductDto
-                        productData = null;
-                    }
-                }
-
-                // SprawdŸ czy webhook zawiera orderData
-                if (root.TryGetProperty("orderData", out var orderDataElement))
-                {
-                    var orderDataJson = orderDataElement.GetRawText();
-                    orderData = JsonSerializer.Deserialize<OrderDto>(orderDataJson, jsonOptions);
-                }
-                // Jeœli ca³oœæ jest OrderDto (bez zagnie¿d¿enia)
-                else if (webhookType?.ToLower().Contains("order") == true)
-                {
-                    try
-                    {
-                        orderData = JsonSerializer.Deserialize<OrderDto>(decryptedJson, jsonOptions);
-                    }
-                    catch (JsonException)
-                    {
-                        // Nie uda³o siê deserializowaæ jako OrderDto
-                        orderData = null;
-                    }
-                }
-
-                // Pobierz konfiguracjê z appsettings
-                var olmedId = _configuration.GetValue<int>("Queue:DefaultFirmaId", 1);
-                var zawiszaId = _configuration.GetValue<int>("Queue:SecondFirmaId", 1);
-                var webhookProcessingFlag = _configuration.GetValue<int>("Queue:WebhookProcessingFlag", 0);
-                
-                // Pobierz nazwê firmy dla logowania
-                var companyName = "Unknown";
-                if (_firmyService != null)
-                {
-                    var company = await _firmyService.GetByIdAsync(olmedId);
-                    companyName = company?.NazwaFirmy ?? "Unknown";
-                }
-
-                // Przetwarzanie ProductDto
-                if (productData != null)
-                {
-                    //Produkty dodajemy do obydwu firm
-                    await AddProductToQueueAsync(guid, webhookType, changeType, productData, olmedId);
-                    await AddProductToQueueAsync(guid, webhookType, changeType, productData, zawiszaId);
-                }
-
-                // Przetwarzanie OrderDto
-                if (orderData != null)
-                {
-                    var orderScope = _configuration.GetValue<int>("Queue:OrderScope", 17);
-                    var targetCompanyId = orderData.Marketplace?.ToLower().Contains("zawisza") == true ? zawiszaId : olmedId;
-                    // Utwórz zadanie kolejki dla zamówienia
-                    var queueItem = new Queue
-                    {
-                        FirmaId = targetCompanyId,
-                        Scope = orderScope,
-                        Request = JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }),
-                        Description = "",//Always empty for new entries
-                        TargetID = 0, //Always zero for new entries
-                        Flg = webhookProcessingFlag,//Default flag for webhook processing = 0
-                        DateAddDateTime = DateTime.UtcNow,
-                        DateModDateTime = DateTime.UtcNow
-                    };
-
-                    // Dodaj do kolejki
-                    var addedItem = await _queueService.AddAsync(queueItem);
-
-                    _logger.LogInformation("Dodano OrderDto do kolejki - GUID: {Guid}, OrderNumber: {OrderNumber}, OrderID: {OrderId}, QueueID: {QueueId}, Firma: {Firma}, ChangeType: {ChangeType}", 
-                        guid, orderData.Number, orderData.Id, addedItem.Id, companyName, changeType ?? "N/A");
-
-                    // Logowanie do pliku
-                    await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
-                        "Dodano OrderDto do kolejki", null, new { 
-                            Guid = guid,
-                            WebhookType = webhookType,
-                            OrderNumber = orderData.Number,
-                            OrderId = orderData.Id,
-                            OrderMarketplace = orderData.Marketplace,
-                            OrderItemsCount = orderData.OrderItems?.Count ?? 0,
-                            QueueId = addedItem.Id,
-                            QueueScope = orderScope,
-                            Company = companyName,
-                            ChangeType = changeType
-                        });
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "B³¹d podczas dodawania do kolejki - GUID: {Guid}", guid);
-                
-                // Logowanie b³êdu do pliku
-                await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
-                    "B³¹d podczas dodawania do kolejki", ex, new { 
-                        Guid = guid,
-                        WebhookType = webhookType
-                    });
-                
-                // Re-throw aby nadrzêdna metoda mog³a obs³u¿yæ b³¹d
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Dodaje ProductDto do kolejki jako osobne zadanie.
-        /// </summary>
-        /// <param name="guid">Identyfikator webhook</param>
-        /// <param name="webhookType">Typ webhook</param>
-        /// <param name="changeType">Typ zmiany (opcjonalny)</param>
-        /// <param name="productData">Dane produktu do dodania</param>
-        /// <param name="companyId">Identyfikator firmy</param>
-        /// <returns>Task reprezentuj¹cy operacjê asynchroniczn¹</returns>
-        private async Task AddProductToQueueAsync(string guid, string webhookType, string? changeType, ProductDto productData, int companyId)
-        {
-            if (_queueService == null)
-            {
-                _logger.LogWarning("QueueService nie jest dostêpny - pominiêto dodanie produktu do kolejki - GUID: {Guid}", guid);
-                return;
-            }
-
-            try
-            {
-                var productScope = _configuration.GetValue<int>("Queue:ProductScope", 16);
-                var webhookProcessingFlag = _configuration.GetValue<int>("Queue:WebhookProcessingFlag", 0);
-
-                // Pobierz nazwê firmy dla logowania
-                var companyName = "Unknown";
-                if (_firmyService != null)
-                {
-                    var company = await _firmyService.GetByIdAsync(companyId);
-                    companyName = company?.NazwaFirmy ?? "Unknown";
-                }
-
-                // Utwórz zadanie kolejki dla produktu
-                var queueItem = new Queue
-                {
-                    FirmaId = companyId,
-                    Scope = productScope,
-                    Request = JsonSerializer.Serialize(productData, new JsonSerializerOptions { WriteIndented = true }),
-                    Description = "", // Always empty for new entries
-                    TargetID = 0, // Always zero for new entries
-                    Flg = webhookProcessingFlag, // Default flag for webhook processing = 0
-                    DateAddDateTime = DateTime.UtcNow,
-                    DateModDateTime = DateTime.UtcNow
-                };
-
-                // Dodaj do kolejki
-                var addedItem = await _queueService.AddAsync(queueItem);
-
-                _logger.LogInformation("Dodano ProductDto do kolejki - GUID: {Guid}, SKU: {Sku}, QueueID: {QueueId}, Firma: {Firma}, ChangeType: {ChangeType}", 
-                    guid, productData.Sku, addedItem.Id, companyName, changeType ?? "N/A");
-
-                // Logowanie do pliku
-                await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
-                    "Dodano ProductDto do kolejki", null, new { 
-                        Guid = guid,
-                        WebhookType = webhookType,
-                        ProductSku = productData.Sku,
-                        ProductName = productData.Name,
-                        ProductId = productData.Id,
-                        QueueId = addedItem.Id,
-                        QueueScope = productScope,
-                        Company = companyName,
-                        CompanyId = companyId,
-                        ChangeType = changeType
-                    });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "B³¹d podczas dodawania produktu do kolejki - GUID: {Guid}, SKU: {Sku}", 
-                    guid, productData?.Sku);
-                
-                // Logowanie b³êdu do pliku
-                await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
-                    "B³¹d podczas dodawania produktu do kolejki", ex, new { 
-                        Guid = guid,
-                        WebhookType = webhookType,
-                        ProductSku = productData?.Sku,
-                        CompanyId = companyId
-                    });
-                
-                throw;
             }
         }
 
@@ -418,16 +261,17 @@ namespace Prosepo.Webhooks.Controllers
         public async Task<IActionResult> HealthCheck()
         {
             // Logowanie health check do pliku
-            await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
-                "Health check wykonany", null, new { 
+            await _fileLoggingService.LogAsync("webhook", LogLevel.Information,
+                "Health check wykonany", null, new
+                {
                     Endpoint = "webhook/health",
                     WebhookDirectory = _webhookDataDirectory,
                     DirectoryExists = Directory.Exists(_webhookDataDirectory)
                 });
 
-            return Ok(new 
-            { 
-                Status = "Healthy", 
+            return Ok(new
+            {
+                Status = "Healthy",
                 Timestamp = DateTime.UtcNow,
                 WebhookDirectory = _webhookDataDirectory,
                 DirectoryExists = Directory.Exists(_webhookDataDirectory)
@@ -448,12 +292,13 @@ namespace Prosepo.Webhooks.Controllers
             try
             {
                 var connectionString = StringEncryptionHelper.DecryptIfEncrypted(_configuration.GetConnectionString("DefaultConnection"), secureKey);
-                
+
                 if (string.IsNullOrEmpty(connectionString))
                 {
-                    return StatusCode(500, new { 
-                        Success = false, 
-                        Message = "Connection string nie jest skonfigurowany" 
+                    return StatusCode(500, new
+                    {
+                        Success = false,
+                        Message = "Connection string nie jest skonfigurowany"
                     });
                 }
 
@@ -464,8 +309,9 @@ namespace Prosepo.Webhooks.Controllers
                 using var command = new Microsoft.Data.SqlClient.SqlCommand("SELECT 1 as TestResult", connection);
                 var result = await command.ExecuteScalarAsync();
 
-                await _fileLoggingService.LogAsync("webhook", LogLevel.Information, 
-                    "Test po³¹czenia z baz¹ danych zakoñczony sukcesem", null, new { 
+                await _fileLoggingService.LogAsync("webhook", LogLevel.Information,
+                    "Test po³¹czenia z baz¹ danych zakoñczony sukcesem", null, new
+                    {
                         ConnectionString = connectionString.Replace(connectionString?.Split("Password=")[1]?.Split(";")[0] ?? "", "***"),
                         TestResult = result
                     });
@@ -484,12 +330,13 @@ namespace Prosepo.Webhooks.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "B³¹d podczas testowania po³¹czenia z baz¹ danych");
-                
-                await _fileLoggingService.LogAsync("webhook", LogLevel.Error, 
+
+                await _fileLoggingService.LogAsync("webhook", LogLevel.Error,
                     "B³¹d podczas testowania po³¹czenia z baz¹ danych", ex);
-                
-                return StatusCode(500, new { 
-                    Success = false, 
+
+                return StatusCode(500, new
+                {
+                    Success = false,
                     Message = ex.Message,
                     ExceptionType = ex.GetType().Name,
                     InnerException = ex.InnerException?.Message

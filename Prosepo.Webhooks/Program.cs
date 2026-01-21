@@ -1,4 +1,6 @@
 ﻿using Prosepo.Webhooks.Services;
+using Prosepo.Webhooks.Services.Webhook;
+using Prosepo.Webhooks.Services.Webhook.Strategies;
 using Prosepo.Webhooks.Tools;
 using Prospeo.DbContext.Extensions;
 using Prospeo.DbContext.Data;
@@ -33,6 +35,15 @@ builder.Services.AddHttpClient();
 
 // Rejestracja OlmedApiService
 builder.Services.AddScoped<OlmedApiService>();
+
+// Rejestracja webhook processing services
+builder.Services.AddScoped<IWebhookDataParser, WebhookDataParser>();
+builder.Services.AddScoped<IWebhookProcessingOrchestrator, WebhookProcessingOrchestrator>();
+
+// Rejestracja strategii przetwarzania webhooków
+builder.Services.AddScoped<IWebhookProcessingStrategy, ProductWebhookStrategy>();
+builder.Services.AddScoped<IWebhookProcessingStrategy, OrderWebhookStrategy>();
+builder.Services.AddScoped<IWebhookProcessingStrategy, UnknownWebhookStrategy>();
 
 // Dodaj Prospeo DbContext i serwisy (z domyślnym connection stringiem)
 // Sprawdź czy connection string istnieje w konfiguracji

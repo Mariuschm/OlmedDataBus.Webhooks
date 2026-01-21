@@ -104,6 +104,9 @@ public class Queue
     [Required]
     public int TargetID { get; set; }
 
+    public string WebhookRawData { get; set; } = string.Empty;
+    public string ChangeType { get; set; } = string.Empty;
+
     /// <summary>
     /// Relacja do firmy
     /// </summary>

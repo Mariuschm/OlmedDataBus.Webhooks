@@ -3,6 +3,7 @@ using Prosepo.Webhooks.Models;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Prosepo.Webhooks.Services
 {
@@ -1118,10 +1119,14 @@ namespace Prosepo.Webhooks.Services
                 var filename = $"cronjobs_{logType}_{date}.log";
                 var filePath = Path.Combine(_logDirectory, filename);
 
-                var jsonLine = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions 
+                // Konfiguracja JSON serialization dla .NET 9
+                var jsonOptions = new JsonSerializerOptions 
                 { 
-                    WriteIndented = false 
-                }) + Environment.NewLine;
+                    WriteIndented = false,
+                    TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver()
+                };
+
+                var jsonLine = JsonSerializer.Serialize(logEntry, jsonOptions) + Environment.NewLine;
 
                 using var semaphore = new SemaphoreSlim(1, 1);
                 await semaphore.WaitAsync();

@@ -104,8 +104,8 @@ public class Queue
     [Required]
     public int TargetID { get; set; }
 
-    public string WebhookRawData { get; set; } = string.Empty;
-    public string ChangeType { get; set; } = string.Empty;
+    public string? WebhookRawData { get; set; } = string.Empty;
+    public string? ChangeType { get; set; } = string.Empty;
 
     /// <summary>
     /// Relacja do firmy
@@ -133,22 +133,38 @@ public class Queue
     public virtual ICollection<QueueRelations> TargetRelations { get; set; } = new HashSet<QueueRelations>();
 
     /// <summary>
-    /// W³aœciwoœæ pomocnicza - konwertuje DateAdd na DateTime
+    /// W³aœciwoœæ pomocnicza - konwertuje DateAdd na DateTime (format Clarion: sekundy od 1990-01-01)
     /// </summary>
     [NotMapped]
     public DateTime DateAddDateTime 
     { 
-        get => DateTimeOffset.FromUnixTimeSeconds(DateAdd).DateTime;
-        set => DateAdd = (int)new DateTimeOffset(value).ToUnixTimeSeconds();
+        get
+        {
+            var clarionEpoch = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            return clarionEpoch.AddSeconds(DateAdd);
+        }
+        set
+        {
+            var clarionEpoch = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            DateAdd = (int)(value - clarionEpoch).TotalSeconds;
+        }
     }
 
     /// <summary>
-    /// W³aœciwoœæ pomocnicza - konwertuje DateMod na DateTime
+    /// W³aœciwoœæ pomocnicza - konwertuje DateMod na DateTime (format Clarion: sekundy od 1990-01-01)
     /// </summary>
     [NotMapped]
     public DateTime DateModDateTime 
     { 
-        get => DateTimeOffset.FromUnixTimeSeconds(DateMod).DateTime;
-        set => DateMod = (int)new DateTimeOffset(value).ToUnixTimeSeconds();
+        get
+        {
+            var clarionEpoch = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            return clarionEpoch.AddSeconds(DateMod);
+        }
+        set
+        {
+            var clarionEpoch = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            DateMod = (int)(value - clarionEpoch).TotalSeconds;
+        }
     }
 }

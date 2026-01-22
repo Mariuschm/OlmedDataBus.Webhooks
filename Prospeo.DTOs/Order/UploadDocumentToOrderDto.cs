@@ -1,4 +1,5 @@
 using Prospeo.DTOs.Core;
+using System.Diagnostics.Contracts;
 using System.Text.Json.Serialization;
 
 namespace Prospeo.DTOs.Order
@@ -99,6 +100,31 @@ namespace Prospeo.DTOs.Order
         /// </remarks>
         [JsonPropertyName("documentFile")]
         public string DocumentFile { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the document number (invoice number or correction number).
+        /// </summary>
+        /// <value>
+        /// The unique document identifier assigned by the accounting system or invoice generator.
+        /// Returns <see cref="string.Empty"/> if not provided.
+        /// </value>
+        /// <remarks>
+        /// This property stores the official document number that appears on the invoice or correction document.
+        /// For invoices, this is typically the invoice number (e.g., "FV/2024/01/001").
+        /// For corrections, this is the correction document number (e.g., "FK/2024/01/001").
+        /// 
+        /// <para>
+        /// This number is used for:
+        /// <list type="bullet">
+        /// <item><description>Document tracking and auditing</description></item>
+        /// <item><description>Accounting reconciliation</description></item>
+        /// <item><description>Legal compliance and tax reporting</description></item>
+        /// <item><description>Customer service inquiries</description></item>
+        /// </list>
+        /// </para>
+        /// </remarks>
+        [JsonPropertyName("documentNumber")]
+        public string DocumentNumber { get; set; } = string.Empty;
     }
 
     /// <summary>

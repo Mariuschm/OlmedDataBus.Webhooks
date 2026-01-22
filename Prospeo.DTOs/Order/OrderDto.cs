@@ -276,5 +276,28 @@ namespace Prospeo.DTOs.Order
         /// Used for cross-system tracking and synchronization.
         /// </value>
         public int XlOrderId { get; set; }
+        /// <summary>
+        /// Gets or sets the date and time when the product was last modified.
+        /// </summary>
+        /// <value>
+        /// A <see cref="DateTime"/> representing the last modification timestamp.
+        /// </value>
+        /// <remarks>
+        /// This timestamp is crucial for:
+        /// <list type="bullet">
+        /// <item><description>Data synchronization between systems (detecting changes)</description></item>
+        /// <item><description>Audit trails and change tracking</description></item>
+        /// <item><description>Determining which products need updates in marketplaces</description></item>
+        /// <item><description>Version control and conflict resolution</description></item>
+        /// </list>
+        /// 
+        /// <para>
+        /// Uses <see cref="CustomDateTimeConverter"/> to handle the specific format "yyyy-MM-dd HH:mm:ss"
+        /// and gracefully handle invalid dates like "0000-00-00 00:00:00".
+        /// </para>
+        /// </remarks>
+        [JsonPropertyName("lastModifyDateTime")]
+        [JsonConverter(typeof(CustomDateTimeConverter))]
+        public DateTime LastModifyDateTime { get; set; }
     }
 }

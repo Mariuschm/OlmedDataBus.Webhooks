@@ -138,7 +138,7 @@ namespace Prosepo.Webhooks.Services
 
         /// <summary>
         /// Wysy³a ¿¹danie POST z plikiem binarnym do API Olmed z autoryzacj¹
-        /// Plik jest konwertowany na base64 i wysy³any jako JSON
+        /// Plik jest wysy³any jako multipart/form-data
         /// </summary>
         public async Task<(bool Success, string? Response, int StatusCode)> PostBinaryFileAsync(
             string endpoint,
@@ -160,25 +160,44 @@ namespace Prosepo.Webhooks.Services
 
                 var url = $"{_baseUrl}{endpoint}";
 
-              
-
                 using var content = new MultipartFormDataContent();
                 content.Add(new StringContent(marketplace), "marketplace");
                 content.Add(new StringContent(orderNumber), "orderNumber");
-                content.Add(new StringContent("xml"), "fileFormat");
-                content.Add(new ByteArrayContent(documentFile), "documentFile");
+                
+                if (!string.IsNullOrEmpty(documentNumber))
+                {
+                    content.Add(new StringContent(documentNumber), "documentNumber");
+                }
+                
                 content.Add(new StringContent(documentType), "documentType");
-                content.Add(new StringContent(documentNumber), "documentNumber");
+                content.Add(new StringContent(fileFormat), "fileFormat");
+                
+                // Dodaj plik z odpowiednim content type
+                var fileContent = new ByteArrayContent(documentFile);
+                
+                // Ustaw content type na podstawie formatu
+                string contentType = fileFormat.ToLowerInvariant() switch
+                {
+                    "xml" => "text/xml",
+                    "pdf" => "application/pdf",
+                    _ => "application/octet-stream"
+                };
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+                
+                // Nazwa pliku z odpowiednim rozszerzeniem
+                string fileName = $"document.{fileFormat}";
+                content.Add(fileContent, "documentFile", fileName);
+                
                 using var request = new HttpRequestMessage(HttpMethod.Post, url)
                 {
                     Content = content
                 };
 
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));     
-                _logger.LogInformation("Wysy³anie ¿¹dania POST z plikiem binarnym (base64) do Olmed: {Url}, FileSize={FileSize} bajtów", 
-                    url, documentFile.Length);
-                _logger.LogInformation(content.ToString());
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                
+                _logger.LogInformation("Wysy³anie ¿¹dania POST z plikiem binarnym (multipart/form-data) do Olmed: {Url}, FileSize={FileSize} bajtów, DocumentType={DocumentType}", 
+                    url, documentFile.Length, documentType);
 
                 var response = await _httpClient.SendAsync(request);
                 var responseContent = await response.Content.ReadAsStringAsync();

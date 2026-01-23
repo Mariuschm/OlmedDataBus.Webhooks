@@ -37,7 +37,8 @@ namespace Prospeo.DTOs.Invoice
         private string taxGroup;
         private string feature;
         private int expirationDate;
-
+        private int lineNo;
+        
         #endregion
 
         #region PROPERTIES
@@ -99,7 +100,7 @@ namespace Prospeo.DTOs.Invoice
         /// </list>
         /// Required for all invoice items.
         /// </remarks>
-        [Required]
+  
         public decimal Cena
         {
             get => price;
@@ -127,7 +128,7 @@ namespace Prospeo.DTOs.Invoice
         /// </para>
         /// Required for all invoice items for proper tax calculation.
         /// </remarks>
-        [Required]
+      
         public int StawkaPod
         {
             get => taxRate;
@@ -161,13 +162,18 @@ namespace Prospeo.DTOs.Invoice
         /// </para>
         /// Required for all invoice items.
         /// </remarks>
-        [Required]
+
         public string Vat
         {
             get => taxGroup;
             set => taxGroup = value;
         }
 
+        public int LineNo
+        {
+            get => lineNo;
+            set => lineNo = value;
+        }
         #endregion
     }
 
@@ -193,7 +199,7 @@ namespace Prospeo.DTOs.Invoice
     public class PurchaseInvoiceModelDTO : DTOModelBase
     {
         #region FIELDS
-
+        private int orderId;
         private string sourceNumber;
         private int documentType;
         private string shortCode;
@@ -394,7 +400,11 @@ namespace Prospeo.DTOs.Invoice
             get => items;
             set => items = value;
         }
-
+        public int OrderId
+        {
+            get => orderId;
+            set => orderId = value;
+        }
         #endregion
     }
 }

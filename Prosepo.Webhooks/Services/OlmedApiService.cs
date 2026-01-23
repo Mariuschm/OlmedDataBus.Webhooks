@@ -137,6 +137,67 @@ namespace Prosepo.Webhooks.Services
         }
 
         /// <summary>
+        /// Wysy³a ¿¹danie POST z plikiem binarnym do API Olmed z autoryzacj¹
+        /// Plik jest konwertowany na base64 i wysy³any jako JSON
+        /// </summary>
+        public async Task<(bool Success, string? Response, int StatusCode)> PostBinaryFileAsync(
+            string endpoint,
+            string marketplace,
+            string orderNumber,
+            string documentType,
+            string fileFormat,
+            byte[] documentFile,
+            string? documentNumber = null)
+        {
+            try
+            {
+                var token = await GetAuthTokenAsync();
+                if (string.IsNullOrEmpty(token))
+                {
+                    _logger.LogError("Nie mo¿na uzyskaæ tokena autoryzacyjnego");
+                    return (false, "B³¹d autoryzacji", 401);
+                }
+
+                var url = $"{_baseUrl}{endpoint}";
+
+              
+
+                using var content = new MultipartFormDataContent();
+                content.Add(new StringContent(marketplace), "marketplace");
+                content.Add(new StringContent(orderNumber), "orderNumber");
+                content.Add(new StringContent("xml"), "fileFormat");
+                content.Add(new ByteArrayContent(documentFile), "documentFile");
+                content.Add(new StringContent(documentType), "documentType");
+                content.Add(new StringContent(documentNumber), "documentNumber");
+                using var request = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = content
+                };
+
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));     
+                _logger.LogInformation("Wysy³anie ¿¹dania POST z plikiem binarnym (base64) do Olmed: {Url}, FileSize={FileSize} bajtów", 
+                    url, documentFile.Length);
+                _logger.LogInformation(content.ToString());
+
+                var response = await _httpClient.SendAsync(request);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("OdpowiedŸ Olmed API: Status={StatusCode}, Content={Content}",
+                    response.StatusCode, responseContent);
+
+                return ((int)response.StatusCode >= 200 && (int)response.StatusCode < 300,
+                        responseContent,
+                        (int)response.StatusCode);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "B³¹d podczas wysy³ania ¿¹dania z plikiem binarnym do Olmed API: {Endpoint}", endpoint);
+                return (false, ex.Message, 500);
+            }
+        }
+
+        /// <summary>
         /// Wysy³a ¿¹danie GET do API Olmed z autoryzacj¹
         /// </summary>
         public async Task<(bool Success, string? Response, int StatusCode)> GetAsync(string endpoint)

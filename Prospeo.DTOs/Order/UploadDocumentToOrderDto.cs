@@ -87,19 +87,19 @@ namespace Prospeo.DTOs.Order
         /// Gets or sets the binary content of the document file.
         /// </summary>
         /// <value>
-        /// The document file content encoded as a base64 string.
-        /// Returns <see cref="string.Empty"/> if not provided.
+        /// The raw binary content of the document file.
+        /// Returns an empty byte array if not provided.
         /// </value>
         /// <remarks>
-        /// The file must be encoded as a base64 string before sending.
-        /// The system will decode and store the file in its original format.
+        /// The file is stored as raw binary data (byte array), not base64 encoded.
+        /// The system processes the file in its original binary format.
         /// 
         /// <para>
         /// Maximum file size and format validation is performed on the server side.
         /// </para>
         /// </remarks>
         [JsonPropertyName("documentFile")]
-        public string DocumentFile { get; set; } = string.Empty;
+        public byte[] DocumentFile { get; set; } = Array.Empty<byte>();
 
         /// <summary>
         /// Gets or sets the document number (invoice number or correction number).

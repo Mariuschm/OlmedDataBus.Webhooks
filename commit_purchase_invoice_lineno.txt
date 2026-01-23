@@ -1,0 +1,11 @@
+feat: Dodano w³aœciwoœæ LineNo do InvoiceItem
+
+Zmiany w PurchaseInvoiceModelDTO:
+- Dodano w³aœciwoœæ LineNo do klasy InvoiceItem
+- Dodano pe³n¹ dokumentacjê XML dla wszystkich w³aœciwoœci
+- Lepsza czytelnoœæ i maintainability kodu
+
+Related to: Refaktoryzacja InvoiceQueueService w CmsWorker
+Wspó³pracuje z: OlmedToZawiszaPurchaseInvoiceRule
+
+Breaking Changes: None (backward compatible)

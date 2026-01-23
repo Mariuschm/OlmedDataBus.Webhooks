@@ -252,6 +252,8 @@ namespace Prosepo.Webhooks.Controllers
                 return BadRequest(new { success = false, error = "DocumentType jest wymagany", message = "Parametr documentType nie mo¿e byæ pusty" });
             if (string.IsNullOrWhiteSpace(request.FileFormat))
                 return BadRequest(new { success = false, error = "FileFormat jest wymagany", message = "Parametr fileFormat nie mo¿e byæ pusty" });
+            if (string.IsNullOrWhiteSpace(request.DocumentNumber))
+                return BadRequest(new { success = false, error = "DocumentNumber jest wymagany", message = "Parametr documentNumber nie mo¿e byæ pusty" });
             if (fileBytes == null || fileBytes.Length == 0)
                 return BadRequest(new { success = false, error = "DocumentFile jest wymagany", message = "Plik nie mo¿e byæ pusty" });
 

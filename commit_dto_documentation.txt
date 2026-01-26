@@ -1,0 +1,83 @@
+feat: Add SalesInvoiceDTO and update PurchaseInvoiceModelDTO documentation
+
+## ?? Changes Overview
+
+### 1. New SalesInvoiceDTO Class
+- ? Created `Prospeo.DTOs/Invoice/SalesInvoiceDTO.cs`
+- ? Models sales invoice for Zawisza (differs from Olmed)
+- ? Contains:
+  - `orderId` - Reference to the XL order (ZamNag)
+  - `invoiceId` - Unique identifier of the invoice in the external system
+  - `items` - Collection of `SalesInvoiceItemDTO` objects
+
+### 2. SalesInvoiceItemDTO Class
+- ? Represents a single line item on a sales invoice
+- ? Contains:
+  - `articleCode` - SKU/product code
+  - `quantity` - Quantity being invoiced (decimal for fractional quantities)
+  - `orderId` - Reference to the order
+  - `orderLineNo` - Line number within the original order
+
+### 3. PurchaseInvoiceModelDTO - Enhanced Documentation
+- ? Added comprehensive XML documentation
+- ? Detailed remarks section explaining:
+  - Usage in accounting system
+  - Inventory updates
+  - Accounts payable tracking
+  - Tax compliance audit trail
+  - Order linking
+- ? Improved Items property documentation with examples
+
+## ?? Purpose
+
+### SalesInvoiceDTO
+Used to transfer sales invoice data between different layers of the application:
+- Generate sales invoices from order data
+- Process invoice generation in queue services
+- Support business rules that create sales invoices
+
+### PurchaseInvoiceModelDTO
+Represents a complete purchase invoice document from a supplier:
+- Register supplier invoices in accounting
+- Update inventory with purchased goods and costs
+- Track accounts payable and payment due dates
+- Maintain audit trail for tax compliance
+- Link purchases to specific orders
+
+## ?? Documentation Quality
+
+Both DTOs include:
+- ? Comprehensive class-level documentation
+- ? Detailed property documentation
+- ? Usage examples in remarks
+- ? Clear purpose statements
+- ? Links to related classes
+
+## ?? Integration
+
+These DTOs are used by:
+- `InvoiceQueueService` - For SalesInvoiceDTO processing
+- `PurchaseInvoiceQueueService` - For PurchaseInvoiceModelDTO processing
+- `IInvoiceBusinessRule` - Business rules interface supports both types
+- `ZawiszaSalesInvoiceRule` - Will use SalesInvoiceDTO to create invoices
+
+## ?? Files Changed
+
+### Added
+- Prospeo.DTOs/Invoice/SalesInvoiceDTO.cs
+
+### Modified
+- Prospeo.DTOs/Invoice/PurchaseInvoiceModelDTO.cs
+
+## ? Benefits
+
+1. **Type Safety** - Strong typing for invoice data transfer
+2. **Documentation** - Clear understanding of purpose and usage
+3. **Extensibility** - Easy to add new invoice types
+4. **Maintainability** - Well-documented code reduces learning curve
+5. **Consistency** - Similar structure for both DTO types
+
+---
+**Related Issues:** DTO documentation, invoice processing architecture
+**Breaking Changes:** None
+**Dependencies:** Prospeo.DTOs.Core.DTOModelBase

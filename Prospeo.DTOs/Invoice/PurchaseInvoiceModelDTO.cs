@@ -39,6 +39,7 @@ namespace Prospeo.DTOs.Invoice
         private int expirationDate;
         private int lineNo;
         
+        
         #endregion
 
         #region PROPERTIES
@@ -174,6 +175,7 @@ namespace Prospeo.DTOs.Invoice
             get => lineNo;
             set => lineNo = value;
         }
+
         #endregion
     }
 
@@ -206,7 +208,7 @@ namespace Prospeo.DTOs.Invoice
         private int paymentTerm;
         private ICollection<InvoiceItem> items = new HashSet<InvoiceItem>();
         private string description;
-
+        private int documentId;
         #endregion
 
         #region PROPERTIES
@@ -400,10 +402,58 @@ namespace Prospeo.DTOs.Invoice
             get => items;
             set => items = value;
         }
+        /// <summary>
+        /// Gets or sets the internal order identifier that this invoice is associated with.
+        /// </summary>
+        /// <value>
+        /// The unique internal ID of the purchase order. Returns 0 if no order is associated.
+        /// </value>
+        /// <remarks>
+        /// This numeric identifier links the invoice to a specific purchase order in the system.
+        /// Used in conjunction with <see cref="OrderNumber"/> to establish the relationship
+        /// between invoices and their originating orders.
+        /// 
+        /// <para>
+        /// This ID enables:
+        /// <list type="bullet">
+        /// <item><description>Database joins and relational queries</description></item>
+        /// <item><description>Efficient lookup of order details</description></item>
+        /// <item><description>Tracking invoice-to-order relationships</description></item>
+        /// <item><description>Order fulfillment and completion status updates</description></item>
+        /// </list>
+        /// </para>
+        /// </remarks>
         public int OrderId
         {
             get => orderId;
             set => orderId = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the unique internal document identifier for this invoice.
+        /// </summary>
+        /// <value>
+        /// The system-generated unique ID for this invoice document. Returns 0 for new, unsaved invoices.
+        /// </value>
+        /// <remarks>
+        /// This is the primary key identifier used internally by the system to uniquely identify
+        /// this invoice document. Unlike <see cref="DokumentObcy"/> (supplier's invoice number),
+        /// this ID is generated and managed by the internal system.
+        /// 
+        /// <para>
+        /// Used for:
+        /// <list type="bullet">
+        /// <item><description>Database primary key and referential integrity</description></item>
+        /// <item><description>Linking related documents (payments, corrections, etc.)</description></item>
+        /// <item><description>Audit trail and document history tracking</description></item>
+        /// <item><description>Internal document references and lookups</description></item>
+        /// </list>
+        /// </para>
+        /// </remarks>
+        public int DocumentId
+        {
+            get => documentId;
+            set => documentId = value;
         }
         #endregion
     }

@@ -25,6 +25,7 @@ namespace Prospeo.DTOs.Payment
         private string contractorCode;
         private string description;
         private string currency = "PLN";
+        private string paymentId;
 
         /// <summary>
         /// Gets or sets the payment document number.
@@ -171,14 +172,29 @@ namespace Prospeo.DTOs.Payment
         public int? RelatedDocumentType { get; set; }
 
         /// <summary>
-        /// Gets or sets the bank account number (for bank transfers).
+        /// Gets or sets the cash registry identifier.
         /// </summary>
         /// <value>
-        /// The bank account number used for the transaction.
+        /// The identifier of the cash registry used for the payment.
         /// </value>
         /// <remarks>
-        /// Optional - required for bank transfer payments.
+        /// Optional field, used for cash payments to specify the registry.
         /// </remarks>
-        public string? BankAccountNumber { get; set; }
+        public string? CashRegistry { get; set; }
+
+        /// <summary>
+        /// Gets or sets the unique payment identifier.
+        /// </summary>
+        /// <value>
+        /// The unique ID for this payment transaction.
+        /// </value>
+        /// <remarks>
+        /// This is a unique identifier for the payment, possibly generated or provided by an external system.
+        /// </remarks>
+        public string PaymentId
+        {
+            get => paymentId;
+            set => paymentId = value;
+        }
     }
 }

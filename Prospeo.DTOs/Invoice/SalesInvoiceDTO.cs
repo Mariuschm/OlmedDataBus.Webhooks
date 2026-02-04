@@ -46,6 +46,32 @@ namespace Prospeo.DTOs.Invoice
         /// This value is typically assigned by the external system after the invoice is created.
         /// </value>
         public int invoiceId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the name of the delivery type for this sales invoice.
+        /// </summary>
+        /// <value>
+        /// A string representing the delivery type name (e.g., "Standard Shipping", "Express Delivery", "Pickup").
+        /// Defaults to an empty string to prevent null reference exceptions.
+        /// </value>
+        /// <remarks>
+        /// This property is used to identify the shipping or delivery method associated with the invoice.
+        /// It helps distinguish between different delivery options that may have been selected during order processing.
+        /// </remarks>
+        public string deliveryTypeName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this invoice is for retail (detal) sales.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if the invoice is for retail sales; otherwise, <c>false</c> for wholesale or other types.
+        /// Defaults to <c>false</c>.
+        /// </value>
+        /// <remarks>
+        /// This property is used to distinguish between retail (detal) and wholesale sales invoices,
+        /// which may be subject to different pricing rules, tax treatments, or business logic.
+        /// </remarks>
+        public bool isDetal { get; set; } = false;
     }
 
     /// <summary>

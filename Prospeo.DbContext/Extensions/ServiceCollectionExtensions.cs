@@ -49,6 +49,14 @@ public static class ServiceCollectionExtensions
                     maxRetryDelay: TimeSpan.FromSeconds(5),
                     errorNumbersToAdd: null);
             });
+            
+            // Enable sensitive data logging in Development
+            var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+            if (environment.Equals("Development", StringComparison.OrdinalIgnoreCase))
+            {
+                options.EnableSensitiveDataLogging();
+                options.EnableDetailedErrors();
+            }
         });
 
         return services;

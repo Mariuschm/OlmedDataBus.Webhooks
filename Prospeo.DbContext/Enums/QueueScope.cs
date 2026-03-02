@@ -72,8 +72,12 @@ public enum QueueScope
     /// Generates Agilero source issue document
     /// </summary>
     AgileroRelease = -1616,
-   
-        
+    /// <summary>
+    /// Generates Marketing sales invoice   
+    /// </summary>
+    Marketing = -2033
+
+
 }
 
 /// <summary>

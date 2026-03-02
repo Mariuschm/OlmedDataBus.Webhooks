@@ -1,3 +1,4 @@
+using Prospeo.DTOs.Invoice;
 using Prospeo.DTOs.Order;
 using Prospeo.DTOs.Product;
 
@@ -10,8 +11,9 @@ namespace Prosepo.Webhooks.Services.Webhook
     {
         public ProductDto? ProductData { get; set; }
         public OrderDto? OrderData { get; set; }
+        public MarketingInvoiceDto? MarketingInvoiceData { get; set; }
         public string? ChangeType { get; set; }
-        public bool IsRecognized => ProductData != null || OrderData != null;
+        public bool IsRecognized => ProductData != null || OrderData != null || MarketingInvoiceData != null;
     }
 
     /// <summary>

@@ -43,6 +43,7 @@ builder.Services.AddScoped<IWebhookProcessingOrchestrator, WebhookProcessingOrch
 // Rejestracja strategii przetwarzania webhooków
 builder.Services.AddScoped<IWebhookProcessingStrategy, ProductWebhookStrategy>();
 builder.Services.AddScoped<IWebhookProcessingStrategy, OrderWebhookStrategy>();
+builder.Services.AddScoped<IWebhookProcessingStrategy, MarketingInvoiceWebhookStrategy>();
 builder.Services.AddScoped<IWebhookProcessingStrategy, UnknownWebhookStrategy>();
 
 // Dodaj Prospeo DbContext i serwisy (z domyślnym connection stringiem)

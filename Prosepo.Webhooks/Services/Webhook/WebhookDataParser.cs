@@ -1,4 +1,5 @@
 using Prosepo.Webhooks.Helpers;
+using Prospeo.DTOs.Invoice;
 using Prospeo.DTOs.Order;
 using Prospeo.DTOs.Product;
 using System.Text.Json;
@@ -62,6 +63,15 @@ namespace Prosepo.Webhooks.Services.Webhook
                     return result;
                 }
 
+                // Strategia 2a: SprawdŸ czy zawiera zagnie¿d¿one marketingInvoiceData
+                if (root.TryGetProperty("marketingInvoiceData", out var marketingInvoiceDataElement))
+                {
+                    var marketingInvoiceDataJson = marketingInvoiceDataElement.GetRawText();
+                    result.MarketingInvoiceData = JsonSerializer.Deserialize<MarketingInvoiceDto>(marketingInvoiceDataJson, _jsonOptions);
+                    _logger.LogDebug("Znaleziono zagnie¿d¿one marketingInvoiceData");
+                    return result;
+                }
+
                 // Strategia 3: Spróbuj deserializowaæ jako ProductDto na podstawie webhookType
                 if (webhookType?.ToLower().Contains("product") == true)
                 {
@@ -98,6 +108,25 @@ namespace Prosepo.Webhooks.Services.Webhook
                     }
                 }
 
+                // Strategia 4a: Spróbuj deserializowaæ jako MarketingInvoiceDto na podstawie webhookType
+                if (webhookType?.ToLower().Contains("marketinginvoice") == true || 
+                    webhookType?.ToLower().Contains("invoice") == true)
+                {
+                    try
+                    {
+                        result.MarketingInvoiceData = JsonSerializer.Deserialize<MarketingInvoiceDto>(decryptedJson, _jsonOptions);
+                        if (result.MarketingInvoiceData != null)
+                        {
+                            _logger.LogDebug("Deserializowano jako MarketingInvoiceDto na podstawie webhookType");
+                            return result;
+                        }
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogDebug(ex, "Nie uda³o siê deserializowaæ jako MarketingInvoiceDto");
+                    }
+                }
+
                 // Strategia 5: Spróbuj deserializowaæ jako ProductDto (fallback)
                 try
                 {
@@ -126,6 +155,21 @@ namespace Prosepo.Webhooks.Services.Webhook
                 catch (JsonException ex)
                 {
                     _logger.LogDebug(ex, "Nie uda³o siê deserializowaæ jako OrderDto (fallback)");
+                }
+
+                // Strategia 7: Spróbuj deserializowaæ jako MarketingInvoiceDto (fallback)
+                try
+                {
+                    result.MarketingInvoiceData = JsonSerializer.Deserialize<MarketingInvoiceDto>(decryptedJson, _jsonOptions);
+                    if (result.MarketingInvoiceData?.Number != null)
+                    {
+                        _logger.LogDebug("Deserializowano jako MarketingInvoiceDto (fallback)");
+                        return result;
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogDebug(ex, "Nie uda³o siê deserializowaæ jako MarketingInvoiceDto (fallback)");
                 }
 
                 _logger.LogWarning("Nie rozpoznano typu danych webhook");

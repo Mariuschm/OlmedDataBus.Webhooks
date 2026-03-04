@@ -63,12 +63,12 @@ namespace Prosepo.Webhooks.Services.Webhook
                     return result;
                 }
 
-                // Strategia 2a: Sprawdü czy zawiera zagnieødøone marketingInvoiceData
-                if (root.TryGetProperty("marketingInvoiceData", out var marketingInvoiceDataElement))
+                // Strategia 2a: Sprawdü czy zawiera zagnieødøone marketingOrderData    
+                if (root.TryGetProperty("marketingOrderData", out var marketingOrderDataElement))
                 {
-                    var marketingInvoiceDataJson = marketingInvoiceDataElement.GetRawText();
-                    result.MarketingInvoiceData = JsonSerializer.Deserialize<MarketingInvoiceDto>(marketingInvoiceDataJson, _jsonOptions);
-                    _logger.LogDebug("Znaleziono zagnieødøone marketingInvoiceData");
+                    var marketingOrderDataJson = marketingOrderDataElement.GetRawText();
+                    result.MarketingInvoiceData = JsonSerializer.Deserialize<MarketingInvoiceDto>(marketingOrderDataJson, _jsonOptions);
+                    _logger.LogDebug("Znaleziono zagnieødøone marketingOrderData");
                     return result;
                 }
 

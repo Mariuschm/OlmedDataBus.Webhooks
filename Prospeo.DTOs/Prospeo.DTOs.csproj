@@ -8,8 +8,4 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="MarketingInvoice\" />
-  </ItemGroup>
-
 </Project>

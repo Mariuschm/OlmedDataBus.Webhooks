@@ -1,5 +1,6 @@
 using Prospeo.DTOs.Core;
 using System;
+using System.Text.Json.Serialization;
 
 namespace Prospeo.DTOs.Invoice
 {
@@ -24,6 +25,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// Always set to "OLMED_CSM" for marketing invoices.
         /// </value>
+        [JsonPropertyName("marketplace")]
         public string Marketplace { get; set; } = "OLMED_CSM";
 
         /// <summary>
@@ -32,6 +34,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// The unique identifier of the user who created this marketing invoice order.
         /// </value>
+        [JsonPropertyName("userId")]
         public int UserId { get; set; }
 
         /// <summary>
@@ -40,6 +43,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// The unique identifier of the user responsible for online sales supervision.
         /// </value>
+        [JsonPropertyName("onlineUserId")]
         public int OnlineUserId { get; set; }
 
         /// <summary>
@@ -48,6 +52,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// The unique identifier of the user responsible for offline sales supervision.
         /// </value>
+        [JsonPropertyName("offlineUserId")]
         public int OfflineUserId { get; set; }
 
         /// <summary>
@@ -57,6 +62,7 @@ namespace Prospeo.DTOs.Invoice
         /// A value between 0 and 100. The sum of <see cref="OnlinePercentage"/> and 
         /// <see cref="OfflinePercentage"/> must equal 100.
         /// </value>
+        [JsonPropertyName("onlinePercentage")]
         public float OnlinePercentage { get; set; }
 
         /// <summary>
@@ -66,6 +72,7 @@ namespace Prospeo.DTOs.Invoice
         /// A value between 0 and 100. The sum of <see cref="OnlinePercentage"/> and 
         /// <see cref="OfflinePercentage"/> must equal 100.
         /// </value>
+        [JsonPropertyName("offlinePercentage")]
         public float OfflinePercentage { get; set; }
 
         /// <summary>
@@ -74,6 +81,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// One of the following values: 'Q1', 'Q2', 'Q3', or 'Q4'.
         /// </value>
+        [JsonPropertyName("quarter")]
         public string Quarter { get; set; }
 
         /// <summary>
@@ -82,6 +90,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// The full name or identifier of the requester from the client's organization.
         /// </value>
+        [JsonPropertyName("requester")]
         public string Requester { get; set; }
 
         /// <summary>
@@ -90,6 +99,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// The unique number identifying this marketing invoice order.
         /// </value>
+        [JsonPropertyName("number")]
         public string Number { get; set; }
 
         /// <summary>
@@ -98,6 +108,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// 0 for unpaid, 1 for paid.
         /// </value>
+        [JsonPropertyName("isPaid")]
         public int IsPaid { get; set; }
 
         /// <summary>
@@ -106,6 +117,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// The total net amount (excluding VAT) of the invoice.
         /// </value>
+        [JsonPropertyName("valueNet")]
         public float ValueNet { get; set; }
 
         /// <summary>
@@ -114,6 +126,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// A descriptive name of the marketing service provided.
         /// </value>
+        [JsonPropertyName("serviceName")]
         public string ServiceName { get; set; }
 
         /// <summary>
@@ -124,6 +137,7 @@ namespace Prospeo.DTOs.Invoice
         /// GTU-12 is used for services related to intermediation and other services 
         /// related to the delivery of goods and services.
         /// </value>
+        [JsonPropertyName("markGtu12")]
         public int MarkGtu12 { get; set; }
 
         /// <summary>
@@ -132,6 +146,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// The date when the marketing service period begins, in ISO 8601 format (yyyy-MM-dd).
         /// </value>
+        [JsonPropertyName("dateStart")]
         public string DateStart { get; set; }
 
         /// <summary>
@@ -140,6 +155,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// The date when the marketing service period ends, in ISO 8601 format (yyyy-MM-dd).
         /// </value>
+        [JsonPropertyName("dateEnd")]
         public string DateEnd { get; set; }
 
         /// <summary>
@@ -148,6 +164,7 @@ namespace Prospeo.DTOs.Invoice
         /// <value>
         /// The number of days until payment is due. Valid values are: 7, 14, 21, 30, 40, 45, 60, or 90.
         /// </value>
+        [JsonPropertyName("paymentTerms")]
         public int PaymentTerms { get; set; }
 
         /// <summary>
@@ -162,6 +179,26 @@ namespace Prospeo.DTOs.Invoice
         /// <item><description>4 - Compensation (kompensata)</description></item>
         /// </list>
         /// </value>
+        [JsonPropertyName("paymentType")]
         public int PaymentType { get; set; }
+
+        /// <summary>
+        /// Gets or sets the customer identifier.
+        /// </summary>
+        /// <value>
+        /// The unique identifier of the customer associated with this marketing invoice.
+        /// </value>
+        [JsonPropertyName("customerId")]
+        public int CustomerId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the internal invoice identifier.
+        /// </summary>
+        /// <value>
+        /// Internal invoice ID used for tracking and reference within the system. 
+        /// This is not the same as the invoice number visible to clients.
+        /// </value>
+        [JsonPropertyName("invoiceId")]
+        public int InvoiceId { get; set; }
     }
 }

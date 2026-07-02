@@ -75,7 +75,7 @@ public enum QueueScope
     /// <summary>
     /// Generates Marketing sales invoice   
     /// </summary>
-    Marketing = -2033
+    Marketing = 18
 
 
 }

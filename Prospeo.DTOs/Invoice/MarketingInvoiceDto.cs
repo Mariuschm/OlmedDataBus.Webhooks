@@ -85,13 +85,13 @@ namespace Prospeo.DTOs.Invoice
         public string Quarter { get; set; }
 
         /// <summary>
-        /// Gets or sets the name of the person requesting the invoice on behalf of the client.
+        /// Gets or sets the requester (contractor/counterparty) information.
         /// </summary>
         /// <value>
-        /// The full name or identifier of the requester from the client's organization.
+        /// The requester details including name, address, and tax identification number.
         /// </value>
         [JsonPropertyName("requester")]
-        public string Requester { get; set; }
+        public RequesterDto Requester { get; set; }
 
         /// <summary>
         /// Gets or sets the order/invoice number.

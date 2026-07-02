@@ -101,15 +101,13 @@ namespace Prospeo.DTOs.MarketingInvoice
         public string Quarter { get; set; } = string.Empty;
 
         /// <summary>
-        /// Gets or sets the requester identifier.
+        /// Gets or sets the requester details.
         /// </summary>
         /// <value>
-        /// The identifier of the person requesting the invoice.
-        /// Returns <see cref="string.Empty"/> if not applicable or not provided.
+        /// The requester data including name, address, and tax identification number.
         /// </value>
         [JsonPropertyName("requester")]
-        [SpecialProperty("Atrybut")]
-        public string Requester { get; set; } = string.Empty;
+        public MarketingInvoiceRequesterDto Requester { get; set; } = new();
 
         /// <summary>
         /// Gets or sets the invoice number.

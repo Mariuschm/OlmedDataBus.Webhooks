@@ -30,7 +30,7 @@ namespace Prospeo.DTOs.Invoice
         /// The street name and number of the requester's address.
         /// Returns <see cref="string.Empty"/> if not applicable or not provided.
         /// </value>
-        [JsonPropertyName("address_street")]
+        [JsonPropertyName("addressStreet")]
         public string AddressStreet { get; set; } = string.Empty;
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace Prospeo.DTOs.Invoice
         /// The ZIP code or postal code for the requester's location.
         /// Returns <see cref="string.Empty"/> if not applicable or not provided.
         /// </value>
-        [JsonPropertyName("address_zip_code")]
+        [JsonPropertyName("addressZipCode")]
         public string AddressZipCode { get; set; } = string.Empty;
 
         /// <summary>
@@ -50,7 +50,7 @@ namespace Prospeo.DTOs.Invoice
         /// The city name where the requester is located.
         /// Returns <see cref="string.Empty"/> if not applicable or not provided.
         /// </value>
-        [JsonPropertyName("address_city")]
+        [JsonPropertyName("addressCity")]
         public string AddressCity { get; set; } = string.Empty;
 
         /// <summary>

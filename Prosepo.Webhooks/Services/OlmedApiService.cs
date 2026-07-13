@@ -147,7 +147,8 @@ namespace Prosepo.Webhooks.Services
             string documentType,
             string fileFormat,
             byte[] documentFile,
-            string? documentNumber = null)
+            string? documentNumber = null,
+            DateTime? documentDateIssue = null)
         {
             try
             {

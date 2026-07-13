@@ -75,7 +75,11 @@ public enum QueueScope
     /// <summary>
     /// Generates Marketing sales invoice   
     /// </summary>
-    Marketing = 18
+    Marketing = 18,
+    /// <summary>
+    /// Uploads Marketing sales invoice to CMS
+    /// </summary>
+    UploadMarketingInvoice = 19
 
 
 }

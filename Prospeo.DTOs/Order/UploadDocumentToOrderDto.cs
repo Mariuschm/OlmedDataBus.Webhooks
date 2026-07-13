@@ -99,7 +99,7 @@ namespace Prospeo.DTOs.Order
         /// </para>
         /// </remarks>
         [JsonPropertyName("documentFile")]
-        public byte[] DocumentFile { get; set; } = Array.Empty<byte>();
+        public byte[]? DocumentFile { get; set; } = Array.Empty<byte>();
 
         /// <summary>
         /// Gets or sets the document number (invoice number or correction number).
@@ -125,6 +125,16 @@ namespace Prospeo.DTOs.Order
         /// </remarks>
         [JsonPropertyName("documentNumber")]
         public string DocumentNumber { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the issue date of the document.
+        /// </summary>
+        /// <value>
+        /// The date when the document was issued.
+        /// Returns <see cref="DateTime.MinValue"/> if not provided.
+        /// </value>
+        [JsonPropertyName("documentDateIssue")]
+        public DateTime DocumentDateIssue { get; set; }
     }
 
     /// <summary>

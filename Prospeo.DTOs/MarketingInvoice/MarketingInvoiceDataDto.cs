@@ -207,5 +207,15 @@ namespace Prospeo.DTOs.MarketingInvoice
         [JsonPropertyName("paymentType")]
         [SpecialProperty("Atrybut")]
         public int PaymentType { get; set; }
+
+
+      
+        [JsonPropertyName("additionalInfo")]
+        [SpecialProperty("Atrybut")]
+        public string AdditionalInfo { get; set; } = string.Empty;
+
+        [JsonPropertyName("notes")]
+        [SpecialProperty("Atrybut")]
+        public string Notes { get; set; } = string.Empty;
     }
 }

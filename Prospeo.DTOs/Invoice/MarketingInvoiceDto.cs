@@ -200,5 +200,17 @@ namespace Prospeo.DTOs.Invoice
         /// </value>
         [JsonPropertyName("invoiceId")]
         public int InvoiceId { get; set; }
+
+        /// <summary>
+        /// Gets or sets any additional information related to the invoice.
+        /// </summary>
+        [JsonPropertyName("additionalInfo")]
+        public string AdditionalInfo { get; set; } = string.Empty;
+        /// <summary>
+        /// Gets or sets any notes related to the invoice.
+        /// </summary>
+
+        [JsonPropertyName("notes")]
+        public string Notes { get; set; } = string.Empty;
     }
 }

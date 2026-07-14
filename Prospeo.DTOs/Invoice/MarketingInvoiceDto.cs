@@ -212,5 +212,11 @@ namespace Prospeo.DTOs.Invoice
 
         [JsonPropertyName("notes")]
         public string Notes { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the invoice should be sent to KSeF (Krajowy System e-Faktur).
+        /// </summary>
+        [JsonPropertyName("sendToKsef")]
+        public int SendToKsef { get; set; }= 1;
     }
 }

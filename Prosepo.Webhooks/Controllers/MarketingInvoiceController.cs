@@ -9,7 +9,7 @@ namespace Prosepo.Webhooks.Controllers
     [Route("api/[controller]")]
     [ApiKeyAuth]
     [Produces("application/json")]
-    public class MarketingInvoiceController: ControllerBase
+    public class MarketingInvoiceController : ControllerBase
     {
         private readonly OlmedApiService _olmedService;
         private readonly ILogger<MarketingInvoiceController> _logger;
@@ -35,9 +35,8 @@ namespace Prosepo.Webhooks.Controllers
         {
             var firmaId = HttpContext.Items["FirmaId"]?.ToString();
             var firmaNazwa = HttpContext.Items["FirmaNazwa"]?.ToString();
-            UploadDocumentToOrderRequest? request = null;
-            byte[]? fileBytes = null;
-
+            UploadDocumentToOrderRequest? request = null;         
+            var uploadedFile = null as IFormFile;
             try
             {
                 var contentType = Request.ContentType?.ToLower() ?? "";
@@ -46,17 +45,20 @@ namespace Prosepo.Webhooks.Controllers
                 {
                     // Multipart form data - plik przesłany jako IFormFile
                     var form = await Request.ReadFormAsync();
-                    fileBytes = System.Text.Encoding.UTF8.GetBytes(form["documentFile"].ToString());
+                    uploadedFile = form.Files.GetFile("documentFile") ?? form.Files.FirstOrDefault();
+                    var fileName = $"Invoice_{form["documentNumber"].ToString().Replace("/", "_").Replace("-", "_").Replace("(", "_").Replace(")", "_")}.pdf";
+
                     request = new UploadDocumentToOrderRequest
                     {
                         Marketplace = form["marketplace"].ToString(),
                         OrderNumber = form["orderNumber"].ToString(),
                         DocumentType = form["documentType"].ToString(),
                         FileFormat = form["fileFormat"].ToString(),
-                        DocumentFile = fileBytes ?? Array.Empty<byte>(),
+                        DocumentFile = new StreamContent(uploadedFile?.OpenReadStream() ?? Stream.Null),
                         DocumentNumber = form["documentNumber"].ToString(),
-                        DocumentDateIssue = DateTime.Today
-                    }; 
+                        DocumentDateIssue = form["documentDateIssue"].ToString(),
+
+                    };
                 }
                 else
                 {
@@ -72,10 +74,9 @@ namespace Prosepo.Webhooks.Controllers
                 return BadRequest(new { success = false, error = "Błąd odczytu żądania", message = $"Nie można odczytać danych: {ex.Message}" });
             }
 
-            fileBytes = request.DocumentFile;
-            _logger.LogInformation(request.DocumentFile.ToString());
+
             _logger.LogInformation("Żądanie przesłania dokumentu do zamówienia: OrderNumber={OrderNumber}, DocumentType={DocumentType}, FileFormat={FileFormat}, Marketplace={Marketplace}, Firma={FirmaNazwa} (ID: {FirmaId}), ContentType={ContentType}, FileSize={FileSize}",
-                request.OrderNumber, request.DocumentType, request.FileFormat, request.Marketplace, firmaNazwa, firmaId, Request.ContentType, fileBytes?.Length ?? 0);
+                request.OrderNumber, request.DocumentType, request.FileFormat, request.Marketplace, firmaNazwa, firmaId, Request.ContentType, uploadedFile?.Length ?? 0);
 
             // Walidacje
             if (string.IsNullOrWhiteSpace(request.OrderNumber))
@@ -88,11 +89,11 @@ namespace Prosepo.Webhooks.Controllers
                 return BadRequest(new { success = false, error = "FileFormat jest wymagany", message = "Parametr fileFormat nie może być pusty" });
             if (string.IsNullOrWhiteSpace(request.DocumentNumber))
                 return BadRequest(new { success = false, error = "DocumentNumber jest wymagany", message = "Parametr documentNumber nie może być pusty" });
-            if (fileBytes == null || fileBytes.Length == 0)
+            if (uploadedFile == null || uploadedFile.Length == 0)
                 return BadRequest(new { success = false, error = "DocumentFile jest wymagany", message = "Plik nie może być pusty" });
 
             const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
-            if (fileBytes.Length > MaxFileSize)
+            if (uploadedFile.Length > MaxFileSize)
                 return BadRequest(new { success = false, error = "Plik zbyt duży", message = $"Maksymalny rozmiar pliku to {MaxFileSize / 1024 / 1024} MB" });
 
             var validFormats = new[] { "xml", "pdf" };
@@ -103,39 +104,25 @@ namespace Prosepo.Webhooks.Controllers
             if (!validDocumentTypes.Contains(request.DocumentType.ToLower()))
                 return BadRequest(new { success = false, error = "Nieprawidłowy typ dokumentu", message = $"DocumentType musi być jedną z wartości: {string.Join(", ", validDocumentTypes)}" });
 
-            // Walidacja formatu pliku po magic bytes
-            if (request.FileFormat.ToLower() == "pdf")
-            {
-                // PDF zaczyna się od: %PDF (0x25 0x50 0x44 0x46)
-                if (fileBytes.Length < 4 || fileBytes[0] != 0x25 || fileBytes[1] != 0x50 || fileBytes[2] != 0x44 || fileBytes[3] != 0x46)
-                    return BadRequest(new { success = false, error = "Nieprawidłowy format pliku", message = "Plik nie jest prawidłowym PDF" });
-            }
-            else if (request.FileFormat.ToLower() == "xml")
-            {
-                // XML zwykle zaczyna się od: < lub UTF-8 BOM
-                var startsWithXml = fileBytes[0] == 0x3C || // '<'
-                                    (fileBytes.Length >= 3 && fileBytes[0] == 0xEF && fileBytes[1] == 0xBB && fileBytes[2] == 0xBF); // UTF-8 BOM
-
-                if (!startsWithXml)
-                    return BadRequest(new { success = false, error = "Nieprawidłowy format pliku", message = "Plik nie jest prawidłowym XML" });
-            }
+            
 
             try
             {
                 // Przygotuj dane do wysłania do Olmed - z plikiem binarnym
+                var fileName = $"Invoice_{request.DocumentNumber.Replace("/", "_").Replace("-", "_").Replace("(", "_").Replace(")", "_")}.pdf";
                 var (success, response, statusCode) = await _olmedService.PostBinaryFileAsync(
                     "/erp-api/marketing-orders/upload-document-to-marketing-order",
                     request.Marketplace,
                     request.OrderNumber,
                     request.DocumentType,
                     request.FileFormat,
-                    fileBytes,
-                    request.DocumentNumber, new DateTime(2026,7,10));
+                    new StreamContent(uploadedFile.OpenReadStream()),
+                    request.DocumentNumber, request.DocumentDateIssue, fileName);
 
                 if (success)
                 {
                     _logger.LogInformation("Pomyślnie przesłano dokument do zamówienia {OrderNumber}, typ: {DocumentType}, format: {FileFormat}, rozmiar: {FileSize} bajtów",
-                        request.OrderNumber, request.DocumentType, request.FileFormat, fileBytes.Length);
+                        request.OrderNumber, request.DocumentType, request.FileFormat, uploadedFile.Length);
                     return Ok(new UploadDocumentToOrderResponse
                     {
                         Success = true,

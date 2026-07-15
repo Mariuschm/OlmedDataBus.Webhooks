@@ -99,7 +99,7 @@ namespace Prospeo.DTOs.Order
         /// </para>
         /// </remarks>
         [JsonPropertyName("documentFile")]
-        public byte[]? DocumentFile { get; set; } = Array.Empty<byte>();
+        public StreamContent DocumentFile { get; set; } = new StreamContent(Stream.Null);
 
         /// <summary>
         /// Gets or sets the document number (invoice number or correction number).
@@ -134,7 +134,9 @@ namespace Prospeo.DTOs.Order
         /// Returns <see cref="DateTime.MinValue"/> if not provided.
         /// </value>
         [JsonPropertyName("documentDateIssue")]
-        public DateTime DocumentDateIssue { get; set; }
+        public string DocumentDateIssue { get; set; }
+
+
     }
 
     /// <summary>

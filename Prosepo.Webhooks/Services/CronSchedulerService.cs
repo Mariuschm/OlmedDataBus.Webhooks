@@ -127,10 +127,15 @@ namespace Prosepo.Webhooks.Services
                 if (response.IsSuccessStatusCode)
                 {
                     // Parsowanie odpowiedzi JSON
-                    var authResponse = JsonSerializer.Deserialize<OlmedAuthResponse>(responseContent);
-                    
+                    var authResponse = JsonSerializer.Deserialize<OlmedAuthResponse>(
+                        responseContent,
+                        new JsonSerializerOptions
+                        {
+                            TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+                        });
+
                     if (authResponse != null && !string.IsNullOrEmpty(authResponse.Token))
-                    {
+                    { 
                         // Tworzenie obiektu z informacjami o tokenie
                         var tokenInfo = new TokenInfo
                         {

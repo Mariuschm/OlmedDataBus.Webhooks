@@ -47,6 +47,8 @@ namespace Prospeo.DTOs.Invoice
         [JsonPropertyName("invoiceNumber")]
         public string InvoiceNumber { get; set; }= string.Empty;
 
+        [JsonPropertyName("documentDate")]
+        public DateTime DocumentDate { get; set; }
 
     }
 }

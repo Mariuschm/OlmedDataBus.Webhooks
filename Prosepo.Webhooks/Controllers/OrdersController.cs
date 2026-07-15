@@ -189,38 +189,28 @@ namespace Prosepo.Webhooks.Controllers
             var firmaId = HttpContext.Items["FirmaId"]?.ToString();
             var firmaNazwa = HttpContext.Items["FirmaNazwa"]?.ToString();
             UploadDocumentToOrderRequest? request = null;
-            byte[]? fileBytes = null;
-            
+            StreamContent uploadedFileStream;
+            IFormFile? uploadedFile;
             try
             {
                 var contentType = Request.ContentType?.ToLower() ?? "";
-                
+
                 if (contentType.Contains("multipart/form-data"))
                 {
                     // Multipart form data - plik przes³any jako IFormFile
                     var form = await Request.ReadFormAsync();
 
                     //// SprawdŸ czy jest plik
-                    //IFormFile? uploadedFile = form.Files.GetFile("documentFile") ?? form.Files.FirstOrDefault();
+                    uploadedFile = form.Files.GetFile("documentFile") ?? form.Files.FirstOrDefault();
 
-                    //if (uploadedFile != null && uploadedFile.Length > 0)
-                    //{
-                    //    // Odczytaj plik jako bajty
-                    //    using var memoryStream = new MemoryStream();
-                    //    await uploadedFile.CopyToAsync(memoryStream);
-                    //    fileBytes = memoryStream.ToArray();
-
-                    //    _logger.LogInformation("Otrzymano plik binarny: {FileName}, rozmiar: {FileSize} bajtów", 
-                    //        uploadedFile.FileName, fileBytes.Length);
-                    //}
-                    fileBytes = System.Text.Encoding.UTF8.GetBytes(form["documentFile"].ToString());
+                    uploadedFileStream = new StreamContent(uploadedFile.OpenReadStream());
                     request = new UploadDocumentToOrderRequest
                     {
                         Marketplace = form["marketplace"].ToString(),
                         OrderNumber = form["orderNumber"].ToString(),
                         DocumentType = form["documentType"].ToString(),
                         FileFormat = form["fileFormat"].ToString(),
-                        DocumentFile = fileBytes ?? Array.Empty<byte>(),
+                        DocumentFile = uploadedFileStream,
                         DocumentNumber = form["documentNumber"].ToString()
                     };
                 }
@@ -228,7 +218,7 @@ namespace Prosepo.Webhooks.Controllers
                 {
                     return BadRequest(new { success = false, error = "Nieprawid³owy Content-Type", message = "Endpoint akceptuje tylko multipart/form-data z plikiem binarnym" });
                 }
-                
+
                 if (request == null)
                     return BadRequest(new { success = false, error = "Nieprawid³owe dane ¿¹dania", message = "Nie mo¿na odczytaæ danych ¿¹dania" });
             }
@@ -238,10 +228,10 @@ namespace Prosepo.Webhooks.Controllers
                 return BadRequest(new { success = false, error = "B³¹d odczytu ¿¹dania", message = $"Nie mo¿na odczytaæ danych: {ex.Message}" });
             }
 
-            fileBytes = request.DocumentFile;
+           
             _logger.LogInformation(request.DocumentFile.ToString());
             _logger.LogInformation("¯¹danie przes³ania dokumentu do zamówienia: OrderNumber={OrderNumber}, DocumentType={DocumentType}, FileFormat={FileFormat}, Marketplace={Marketplace}, Firma={FirmaNazwa} (ID: {FirmaId}), ContentType={ContentType}, FileSize={FileSize}",
-                request.OrderNumber, request.DocumentType, request.FileFormat, request.Marketplace, firmaNazwa, firmaId, Request.ContentType, fileBytes?.Length ?? 0);
+                request.OrderNumber, request.DocumentType, request.FileFormat, request.Marketplace, firmaNazwa, firmaId, Request.ContentType, uploadedFile?.Length ?? 0);
 
             // Walidacje
             if (string.IsNullOrWhiteSpace(request.OrderNumber))
@@ -254,11 +244,11 @@ namespace Prosepo.Webhooks.Controllers
                 return BadRequest(new { success = false, error = "FileFormat jest wymagany", message = "Parametr fileFormat nie mo¿e byæ pusty" });
             if (string.IsNullOrWhiteSpace(request.DocumentNumber))
                 return BadRequest(new { success = false, error = "DocumentNumber jest wymagany", message = "Parametr documentNumber nie mo¿e byæ pusty" });
-            if (fileBytes == null || fileBytes.Length == 0)
+            if (uploadedFile == null || uploadedFile.Length == 0)
                 return BadRequest(new { success = false, error = "DocumentFile jest wymagany", message = "Plik nie mo¿e byæ pusty" });
 
             const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
-            if (fileBytes.Length > MaxFileSize)
+            if (uploadedFile.Length > MaxFileSize)
                 return BadRequest(new { success = false, error = "Plik zbyt du¿y", message = $"Maksymalny rozmiar pliku to {MaxFileSize / 1024 / 1024} MB" });
 
             var validFormats = new[] { "xml", "pdf" };
@@ -269,22 +259,7 @@ namespace Prosepo.Webhooks.Controllers
             if (!validDocumentTypes.Contains(request.DocumentType.ToLower()))
                 return BadRequest(new { success = false, error = "Nieprawid³owy typ dokumentu", message = $"DocumentType musi byæ jedn¹ z wartoœci: {string.Join(", ", validDocumentTypes)}" });
 
-            // Walidacja formatu pliku po magic bytes
-            if (request.FileFormat.ToLower() == "pdf")
-            {
-                // PDF zaczyna siê od: %PDF (0x25 0x50 0x44 0x46)
-                if (fileBytes.Length < 4 || fileBytes[0] != 0x25 || fileBytes[1] != 0x50 || fileBytes[2] != 0x44 || fileBytes[3] != 0x46)
-                    return BadRequest(new { success = false, error = "Nieprawid³owy format pliku", message = "Plik nie jest prawid³owym PDF" });
-            }
-            else if (request.FileFormat.ToLower() == "xml")
-            {
-                // XML zwykle zaczyna siê od: < lub UTF-8 BOM
-                var startsWithXml = fileBytes[0] == 0x3C || // '<'
-                                    (fileBytes.Length >= 3 && fileBytes[0] == 0xEF && fileBytes[1] == 0xBB && fileBytes[2] == 0xBF); // UTF-8 BOM
-                
-                if (!startsWithXml)
-                    return BadRequest(new { success = false, error = "Nieprawid³owy format pliku", message = "Plik nie jest prawid³owym XML" });
-            }
+            
 
             try
             {
@@ -295,13 +270,13 @@ namespace Prosepo.Webhooks.Controllers
                     request.OrderNumber,
                     request.DocumentType,
                     request.FileFormat,
-                    fileBytes,
-                    request.DocumentNumber);
+                    uploadedFileStream,
+                    request.DocumentNumber,null, null);
 
                 if (success)
                 {
                     _logger.LogInformation("Pomyœlnie przes³ano dokument do zamówienia {OrderNumber}, typ: {DocumentType}, format: {FileFormat}, rozmiar: {FileSize} bajtów",
-                        request.OrderNumber, request.DocumentType, request.FileFormat, fileBytes.Length);
+                        request.OrderNumber, request.DocumentType, request.FileFormat, uploadedFile.Length);
                     return Ok(new UploadDocumentToOrderResponse
                     {
                         Success = true,

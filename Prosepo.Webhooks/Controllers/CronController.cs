@@ -5,6 +5,7 @@ using Prosepo.Webhooks.Services;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Prosepo.Webhooks.Controllers
 {
@@ -285,8 +286,13 @@ namespace Prosepo.Webhooks.Controllers
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var authResponse = JsonSerializer.Deserialize<OlmedAuthResponse>(responseContent);
-                    
+                    var authResponse = JsonSerializer.Deserialize<OlmedAuthResponse>(
+                        responseContent,
+                        new JsonSerializerOptions
+                        {
+                            TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+                        });
+
                     if (authResponse != null && !string.IsNullOrEmpty(authResponse.Token))
                     {
                         var tokenInfo = new TokenInfo
@@ -423,8 +429,13 @@ namespace Prosepo.Webhooks.Controllers
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var authResponse = JsonSerializer.Deserialize<OlmedAuthResponse>(responseContent);
-                    
+                    var authResponse = JsonSerializer.Deserialize<OlmedAuthResponse>(
+                        responseContent,
+                        new JsonSerializerOptions
+                        {
+                            TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+                        });
+
                     if (authResponse != null && !string.IsNullOrEmpty(authResponse.Token))
                     {
                         var tokenInfo = new TokenInfo

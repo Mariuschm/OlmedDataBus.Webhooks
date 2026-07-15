@@ -2,6 +2,7 @@ using Prosepo.Webhooks.Helpers;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Prosepo.Webhooks.Services
 {
@@ -20,6 +21,10 @@ namespace Prosepo.Webhooks.Services
         private string? _cachedToken;
         private DateTime _tokenExpiration = DateTime.MinValue;
         private readonly string secureKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44=";
+        private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
+        {
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+        };
 
         public OlmedApiService(
             HttpClient httpClient,
@@ -29,9 +34,9 @@ namespace Prosepo.Webhooks.Services
             _httpClient = httpClient;
             _configuration = configuration;
             _logger = logger;
-            _baseUrl = configuration["OlmedAuth:BaseUrl"] ?? "https://draft-csm-connector.grupaolmed.pl";
-            _username = StringEncryptionHelper.DecryptIfEncrypted(configuration["OlmedAuth:Username"], secureKey) ?? "test_prospeo";
-            _password = StringEncryptionHelper.DecryptIfEncrypted(configuration["OlmedAuth:Password"], secureKey) ?? "pvRGowxF%266J%2AM%24";
+            _baseUrl =  "https://csm-connector.grupaolmed.pl";
+            _username = "prospeo";
+            _password = "ijp@?AnKiyWj8b1";
         }
 
         /// <summary>
@@ -41,10 +46,10 @@ namespace Prosepo.Webhooks.Services
         private async Task<string?> GetAuthTokenAsync()
         {
             // SprawdŸ czy mamy wa¿ny token w cache
-            if (_cachedToken != null && DateTime.UtcNow < _tokenExpiration)
-            {
-                return _cachedToken;
-            }
+            //if (_cachedToken != null && DateTime.UtcNow < _tokenExpiration)
+            //{
+            //    return _cachedToken;
+            //}
 
             try
             {
@@ -56,7 +61,7 @@ namespace Prosepo.Webhooks.Services
                 };
 
                 var content = new StringContent(
-                    JsonSerializer.Serialize(loginData),
+                    JsonSerializer.Serialize(loginData, _jsonSerializerOptions),
                     Encoding.UTF8,
                     "application/json");
 
@@ -69,7 +74,9 @@ namespace Prosepo.Webhooks.Services
                 }
 
                 var responseContent = await response.Content.ReadAsStringAsync();
-                var tokenResponse = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(responseContent);
+                var tokenResponse = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                    responseContent,
+                    _jsonSerializerOptions);
 
                 if (tokenResponse != null && tokenResponse.TryGetValue("access_token", out var tokenElement))
                 {
@@ -100,12 +107,12 @@ namespace Prosepo.Webhooks.Services
                 if (string.IsNullOrEmpty(token))
                 {
                     _logger.LogError("Nie mo¿na uzyskaæ tokena autoryzacyjnego");
-                    return (false, "B³¹d autoryzacji", 401);
+                    return (false, "B³¹d autoryzacji Nie mo¿na uzyskaæ tokena autoryzacyjnego\"", 401);
                 }
 
                 var url = $"{_baseUrl}{endpoint}";
                 var content = new StringContent(
-                    JsonSerializer.Serialize(requestBody),
+                    JsonSerializer.Serialize(requestBody, _jsonSerializerOptions),
                     Encoding.UTF8,
                     "application/json");
 
@@ -146,9 +153,10 @@ namespace Prosepo.Webhooks.Services
             string orderNumber,
             string documentType,
             string fileFormat,
-            byte[] documentFile,
+            StreamContent documentFile,
             string? documentNumber = null,
-            DateTime? documentDateIssue = null)
+            string? documentDateIssue = null, 
+            string? fileName = null)
         {
             try
             {
@@ -156,7 +164,7 @@ namespace Prosepo.Webhooks.Services
                 if (string.IsNullOrEmpty(token))
                 {
                     _logger.LogError("Nie mo¿na uzyskaæ tokena autoryzacyjnego");
-                    return (false, "B³¹d autoryzacji", 401);
+                    return (false, $"B³¹d autoryzacji Nie mo¿na uzyskaæ tokena autoryzacyjnego", 401);
                 }
 
                 var url = $"{_baseUrl}{endpoint}";
@@ -173,20 +181,14 @@ namespace Prosepo.Webhooks.Services
                 content.Add(new StringContent(documentType), "documentType");
                 content.Add(new StringContent(fileFormat), "fileFormat");
                 
-                // Dodaj plik z odpowiednim content type
-                var fileContent = new ByteArrayContent(documentFile);
-                
-                // Ustaw content type na podstawie formatu
-                string contentType = fileFormat.ToLowerInvariant() switch
+                if (!string.IsNullOrEmpty(documentDateIssue))
                 {
-                    "xml" => "text/xml",
-                    "pdf" => "application/pdf",
-                    _ => "application/octet-stream"
-                };
-                fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+                    content.Add(new StringContent(documentDateIssue), "documentDateIssue");
+                }
                 
-                // Nazwa pliku z odpowiednim rozszerzeniem
-                string fileName = $"document.{fileFormat}";
+                // Dodaj plik jako stream
+                var fileContent = documentFile;
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
                 content.Add(fileContent, "documentFile", fileName);
                 
                 using var request = new HttpRequestMessage(HttpMethod.Post, url)
@@ -198,7 +200,7 @@ namespace Prosepo.Webhooks.Services
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 
                 _logger.LogInformation("Wysy³anie ¿¹dania POST z plikiem binarnym (multipart/form-data) do Olmed: {Url}, FileSize={FileSize} bajtów, DocumentType={DocumentType}", 
-                    url, documentFile.Length, documentType);
+                    url, documentFile.Headers.ContentLength ?? 0, documentType);
 
                 var response = await _httpClient.SendAsync(request);
                 var responseContent = await response.Content.ReadAsStringAsync();

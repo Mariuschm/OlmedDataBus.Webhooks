@@ -75,12 +75,25 @@ public enum QueueScope
     /// <summary>
     /// Generates Marketing sales invoice   
     /// </summary>
-    Marketing = 18,
+    Marketing = 18, /*New marketing order placed*/
     /// <summary>
     /// Uploads Marketing sales invoice to CMS
     /// </summary>
-    UploadMarketingInvoice = 19
-
+    UploadMarketingInvoice = 19,
+    /// <summary>
+    /// Deletes Marketing sales invoice from ERP
+    /// </summary>
+    DeleteMarketingInvoice = 20, /*Marketing order deleted*/
+    /// <summary>
+    /// Updates Marketing sales invoice in ERP
+    /// </summary>
+    UpdateMarketingInvoice = 21 /*Marketing order edited*/
+    /*New invoice
+New order placed
+New product added
+Order edited
+Product discounted
+Product edited*/
 
 }
 

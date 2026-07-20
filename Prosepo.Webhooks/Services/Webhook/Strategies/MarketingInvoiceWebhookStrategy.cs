@@ -78,7 +78,7 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
                         ValueNet = invoiceData.ValueNet,
                         Quarter = invoiceData.Quarter,
                         QueueId = queueItem.Id,
-                        QueueScope = invoiceScope,
+                        QueueScope = queueItem.Scope,
                         Company = companyName,
                         CompanyId = targetCompanyId,
                         ChangeType = context.ChangeType
@@ -129,10 +129,12 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
             int invoiceScope,
             int webhookProcessingFlag)
         {
+            var resolvedScope = ResolveMarketingScope(context.WebhookType, invoiceScope);
+
             var queueItem = new Queue
             {
                 FirmaId = targetCompanyId,
-                Scope = invoiceScope,
+                Scope = resolvedScope,
                 Request = JsonSerializer.Serialize(invoiceData, _jsonOptions),
                 Description = "",
                 TargetID = 0,
@@ -144,6 +146,22 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
             };
 
             return await _queueService.AddAsync(queueItem);
+        }
+        /// <summary>
+        /// Rozwi¹zuje odpowiedni zakres dla webhooków marketingowych na podstawie typu webhooka
+        /// </summary>
+        /// <param name="webhookType">Typ webhooka</param>
+        /// <param name="defaultScope">Domyœlny zakres</param>
+        /// <returns>Rozwi¹zany zakres</returns>
+        private static int ResolveMarketingScope(string? webhookType, int defaultScope)
+        {
+            return webhookType?.Trim() switch
+            {
+                "New marketing order placed" => 18,
+                "Marketing order deleted" => 20,
+                "Marketing order edited" => 21,
+                _ => defaultScope
+            };
         }
 
         private async Task<string> GetCompanyNameAsync(int companyId)

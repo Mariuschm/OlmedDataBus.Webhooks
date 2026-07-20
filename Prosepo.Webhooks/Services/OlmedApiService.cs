@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using Prosepo.Webhooks.Configuration;
 using Prosepo.Webhooks.Helpers;
 using System.Net.Http.Headers;
 using System.Text;
@@ -13,14 +15,12 @@ namespace Prosepo.Webhooks.Services
     public class OlmedApiService
     {
         private readonly HttpClient _httpClient;
-        private readonly IConfiguration _configuration;
         private readonly ILogger<OlmedApiService> _logger;
         private readonly string _baseUrl;
         private readonly string _username;
         private readonly string _password;
         private string? _cachedToken;
         private DateTime _tokenExpiration = DateTime.MinValue;
-        private readonly string secureKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44=";
         private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
         {
             TypeInfoResolver = new DefaultJsonTypeInfoResolver()
@@ -28,15 +28,18 @@ namespace Prosepo.Webhooks.Services
 
         public OlmedApiService(
             HttpClient httpClient,
-            IConfiguration configuration,
+            IOptions<OlmedApiOptions> options,
             ILogger<OlmedApiService> logger)
         {
             _httpClient = httpClient;
-            _configuration = configuration;
             _logger = logger;
-            _baseUrl =  "https://csm-connector.grupaolmed.pl";
-            _username = "prospeo";
-            _password = "ijp@?AnKiyWj8b1";
+
+            var configured = options.Value;
+            var secureKey = Environment.GetEnvironmentVariable("PROSPEO_KEY") ?? "CPNFWqXE3TMY925xMgUPlUnWkjSyo9182PpYM69HM44=";
+
+            _baseUrl = StringEncryptionHelper.DecryptIfEncrypted(configured.BaseUrl, secureKey) ?? configured.BaseUrl;
+            _username = StringEncryptionHelper.DecryptIfEncrypted(configured.Username, secureKey) ?? configured.Username;
+            _password = StringEncryptionHelper.DecryptIfEncrypted(configured.Password, secureKey) ?? configured.Password;
         }
 
         /// <summary>

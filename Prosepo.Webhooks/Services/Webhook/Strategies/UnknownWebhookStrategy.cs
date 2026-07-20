@@ -80,10 +80,9 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
                     "B³¹d podczas przetwarzania UnknownWebhook", ex, new
                     {
                         Guid = context.Guid,
-                        WebhookType = context.WebhookType
+                        WebhookType = context.WebhookType,
+                        ErrorMessage = ex.Message
                     });
-
-                throw;
             }
 
             return result;

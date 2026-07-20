@@ -80,8 +80,8 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
                             ProductName = productData.Name,
                             ProductId = productData.Id,
                             QueueId = queueItem.Id,
-                            QueueScope = productScope,
-                            Company = companyName,
+                                QueueScope = queueItem.Scope,
+                                Company = companyName,
                             CompanyId = companyId,
                             ChangeType = context.ChangeType
                         });
@@ -100,10 +100,9 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
                     {
                         Guid = context.Guid,
                         WebhookType = context.WebhookType,
-                        ProductSku = productData?.Sku
+                        ProductSku = productData?.Sku,
+                        ErrorMessage = ex.Message
                     });
-
-                throw;
             }
 
             return result;

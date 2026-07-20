@@ -1,7 +1,12 @@
 ﻿using Prosepo.Webhooks.Services;
 using Prosepo.Webhooks.Services.Webhook;
+using Prosepo.Webhooks.Services.Webhook.Parsing;
 using Prosepo.Webhooks.Services.Webhook.Strategies;
+using Prosepo.Webhooks.Services.Application;
+using Prosepo.Webhooks.Security;
+using Prosepo.Webhooks.Configuration;
 using Prosepo.Webhooks.Tools;
+using Microsoft.AspNetCore.Authentication;
 using Prospeo.DbContext.Extensions;
 using Prospeo.DbContext.Data;
 using Microsoft.EntityFrameworkCore;
@@ -33,12 +38,29 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 // Add services to the container.
 builder.Services.AddHttpClient();
 
+builder.Services
+    .AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationHandler.SchemeName, _ => { });
+
+builder.Services.AddAuthorization();
+builder.Services.Configure<OlmedApiOptions>(builder.Configuration.GetSection(OlmedApiOptions.SectionName));
+
 // Rejestracja OlmedApiService
 builder.Services.AddScoped<OlmedApiService>();
+
+// Rejestracja webhook parsing chain (Chain of Responsibility)
+builder.Services.AddScoped<IWebhookParseHandler, NestedPayloadParseHandler>();
+builder.Services.AddScoped<IWebhookParseHandler, WebhookTypeHintParseHandler>();
+builder.Services.AddScoped<IWebhookParseHandler, FallbackParseHandler>();
 
 // Rejestracja webhook processing services
 builder.Services.AddScoped<IWebhookDataParser, WebhookDataParser>();
 builder.Services.AddScoped<IWebhookProcessingOrchestrator, WebhookProcessingOrchestrator>();
+
+// Rejestracja use-case services
+builder.Services.AddScoped<IOrdersUseCaseService, OrdersUseCaseService>();
+builder.Services.AddScoped<IMarketingInvoiceUseCaseService, MarketingInvoiceUseCaseService>();
+builder.Services.AddScoped<IQueueUseCaseService, QueueUseCaseService>();
 
 // Rejestracja strategii przetwarzania webhooków
 builder.Services.AddScoped<IWebhookProcessingStrategy, ProductWebhookStrategy>();
@@ -148,6 +170,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

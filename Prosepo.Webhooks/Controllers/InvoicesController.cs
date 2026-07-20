@@ -1,5 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Prosepo.Webhooks.Attributes;
+using Prosepo.Webhooks.Security;
 using Prosepo.Webhooks.Services;
 using Prospeo.DbContext.Models;
 using System.Text.Json;
@@ -15,7 +16,7 @@ namespace Prosepo.Webhooks.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    [ApiKeyAuth]
+    [Authorize(AuthenticationSchemes = ApiKeyAuthenticationHandler.SchemeName)]
     public class InvoicesController : ControllerBase
     {
         private readonly OlmedApiService _olmedService;

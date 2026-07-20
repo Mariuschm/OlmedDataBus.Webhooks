@@ -79,7 +79,7 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
                         OrderMarketplace = orderData.Marketplace,
                         OrderItemsCount = orderData.OrderItems?.Count ?? 0,
                         QueueId = queueItem.Id,
-                        QueueScope = orderScope,
+                        QueueScope = queueItem.Scope,
                         Company = companyName,
                         CompanyId = targetCompanyId,
                         ChangeType = context.ChangeType
@@ -98,10 +98,9 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
                     {
                         Guid = context.Guid,
                         WebhookType = context.WebhookType,
-                        OrderNumber = orderData?.Number
+                        OrderNumber = orderData?.Number,
+                        ErrorMessage = ex.Message
                     });
-
-                throw;
             }
 
             return result;

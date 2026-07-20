@@ -118,6 +118,7 @@ namespace Prospeo.DTOs.Invoice
         /// The total net amount (excluding VAT) of the invoice.
         /// </value>
         [JsonPropertyName("valueNet")]
+        [Obsolete("Use the 'Items' property to access order items and their net values instead.")]
         public float ValueNet { get; set; }
 
         /// <summary>
@@ -127,6 +128,7 @@ namespace Prospeo.DTOs.Invoice
         /// A descriptive name of the marketing service provided.
         /// </value>
         [JsonPropertyName("serviceName")]
+        [Obsolete("Use the 'Items' property to access order items and their net values instead.")]
         public string ServiceName { get; set; }
 
         /// <summary>
@@ -138,6 +140,7 @@ namespace Prospeo.DTOs.Invoice
         /// related to the delivery of goods and services.
         /// </value>
         [JsonPropertyName("markGtu12")]
+        [Obsolete("Use the 'Items' property to access order items and their net values instead.")]
         public int MarkGtu12 { get; set; }
 
         /// <summary>
@@ -217,6 +220,45 @@ namespace Prospeo.DTOs.Invoice
         /// Gets or sets a value indicating whether the invoice should be sent to KSeF (Krajowy System e-Faktur).
         /// </summary>
         [JsonPropertyName("sendToKsef")]
-        public int SendToKsef { get; set; }= 1;
+        public int SendToKsef { get; set; } = 1;
+        /// <summary>
+        /// Gets or sets the order items associated with the marketing invoice.
+        /// </summary>
+        [JsonPropertyName("items")]
+        public List<MarketingOrderItems> Items { get; set; } = new List<MarketingOrderItems>();
+    }
+    /// <summary>
+    /// Represents the order items for a marketing invoice.
+    /// </summary>
+    public class MarketingOrderItems : DTOModelBase
+    {
+        /// <summary>
+        /// Gets or sets the net value of the order.
+        /// </summary>
+        /// <value>
+        /// The total net amount (excluding VAT) of the line item.
+        /// </value>
+        [JsonPropertyName("valueNet")]
+        public float ValueNet { get; set; }
+
+        /// <summary>
+        /// Gets or sets the name of the service being invoiced.
+        /// </summary>
+        /// <value>
+        /// A descriptive name of the marketing service provided.
+        /// </value>
+        [JsonPropertyName("serviceName")]
+        public string ServiceName { get; set; }
+
+        /// <summary>
+        /// Gets or sets the GTU-12 marking for the invoice.
+        /// </summary>
+        /// <value>
+        /// 0 for no GTU-12 marking, 1 for GTU-12 marking applied.
+        /// GTU-12 is used for services related to intermediation and other services 
+        /// related to the delivery of goods and services.
+        /// </value>
+        [JsonPropertyName("markGtu12")]
+        public int MarkGtu12 { get; set; }
     }
 }

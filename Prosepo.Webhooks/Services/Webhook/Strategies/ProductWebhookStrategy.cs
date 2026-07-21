@@ -31,7 +31,7 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
             _configuration = configuration;
             _logger = logger;
             _fileLoggingService = fileLoggingService;
-            
+
             // Konfiguruj JsonSerializerOptions zgodnie z .NET 9 requirements
             _jsonOptions = new JsonSerializerOptions
             {
@@ -80,8 +80,8 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
                             ProductName = productData.Name,
                             ProductId = productData.Id,
                             QueueId = queueItem.Id,
-                                QueueScope = queueItem.Scope,
-                                Company = companyName,
+                            QueueScope = queueItem.Scope,
+                            Company = companyName,
                             CompanyId = companyId,
                             ChangeType = context.ChangeType
                         });

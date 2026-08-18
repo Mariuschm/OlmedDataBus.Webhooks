@@ -81,7 +81,8 @@ namespace Prosepo.Webhooks.Services.Webhook.Strategies
                         QueueScope = queueItem.Scope,
                         Company = companyName,
                         CompanyId = targetCompanyId,
-                        ChangeType = context.ChangeType
+                        ChangeType = context.ChangeType,
+                        Items = invoiceData.Items.Count()
                     });
             }
             catch (Exception ex)

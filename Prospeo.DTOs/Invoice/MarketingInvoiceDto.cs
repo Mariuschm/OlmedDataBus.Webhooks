@@ -249,7 +249,7 @@ namespace Prospeo.DTOs.Invoice
         /// </value>
         [JsonPropertyName("serviceName")]
         public string ServiceName { get; set; }
-
+    
         /// <summary>
         /// Gets or sets the GTU-12 marking for the invoice.
         /// </summary>
@@ -260,5 +260,6 @@ namespace Prospeo.DTOs.Invoice
         /// </value>
         [JsonPropertyName("markGtu12")]
         public int MarkGtu12 { get; set; }
+        
     }
 }

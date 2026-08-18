@@ -54,6 +54,16 @@ namespace Prospeo.DTOs.Invoice
         public string AddressCity { get; set; } = string.Empty;
 
         /// <summary>
+        /// Gets or sets the country of the requester's address.
+        /// </summary>
+        /// <value>
+        /// The country name where the requester is located.
+        /// Returns <see cref="string.Empty"/> if not applicable or not provided.
+        /// </value>
+        [JsonPropertyName("addressCountry")]
+        public string AddressCountry { get; set; } = string.Empty;
+
+        /// <summary>
         /// Gets or sets the NIP (National Identification Number) of the requester.
         /// </summary>
         /// <value>
